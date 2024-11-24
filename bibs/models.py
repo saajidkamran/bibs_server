@@ -17,6 +17,9 @@ class SetupCompany(models.Model):
     def __str__(self):
         return self.company_name
 
+    class Meta:
+        db_table = "setup_company"  # Renamed table
+
 
 class MItem(models.Model):
     it_id = models.CharField(max_length=10, primary_key=True)  # Primary Key
@@ -26,6 +29,9 @@ class MItem(models.Model):
 
     def __str__(self):
         return self.desc
+
+    class Meta:
+        db_table = "M_items"  # Renamed table
 
 
 class MMetal(models.Model):
@@ -37,6 +43,9 @@ class MMetal(models.Model):
     def __str__(self):
         return self.desc
 
+    class Meta:
+        db_table = "M_metals"  # Renamed table
+
 
 class MMetalProcess(models.Model):
     mepr_id = models.CharField(max_length=10, primary_key=True)  # Primary Key
@@ -47,6 +56,9 @@ class MMetalProcess(models.Model):
     def __str__(self):
         return self.desc
 
+    class Meta:
+        db_table = "M_metalprocess"  # Renamed table
+
 
 class SerialTable(models.Model):
     sr_code = models.CharField(max_length=10, primary_key=True)  # Primary Key
@@ -55,3 +67,25 @@ class SerialTable(models.Model):
 
     def __str__(self):
         return f"{self.sr_code}: {self.description}"
+
+    class Meta:
+        db_table = "serial_table"  # Renamed table
+
+
+class MTrsItemsMetals(models.Model):
+    item = models.ForeignKey(
+        MItem, on_delete=models.CASCADE, db_column="it_id"
+    )  # Foreign key to MItem
+    metal = models.ForeignKey(
+        MMetal, on_delete=models.CASCADE, db_column="met_id"
+    )  # Foreign key to MMetal
+
+    class Meta:
+        db_table = "M_trs_items_metals"  # Renamed table
+        unique_together = (
+            "item",
+            "metal",
+        )  # Ensure unique combinations of item and metal
+
+    def __str__(self):
+        return f"{self.item.it_id} - {self.metal.met_id}"
