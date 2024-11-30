@@ -105,7 +105,7 @@ class MTrsItemsMetals(models.Model):
     )  # Foreign key to MMetal
 
     class Meta:
-        db_table = "M_trsitemsmetals"  # Renamed table
+        db_table = "M_trs_items_metals"  # Renamed table
         unique_together = (
             "item",
             "metal",

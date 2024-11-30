@@ -18,16 +18,29 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from bibs.views import SetupItemViewSet
-from bibs.views import MMetalViewSet
-from bibs.views import MMetalProcessViewSet
+from bibs.views import (
+    MItemViewSet,
+    MMetalViewSet,
+    MMetalProcessViewSet,
+    MProcessViewSet,
+    MTrsItemsMetalsViewSet,
+    MTrsProcessViewSet,
+    MTrsMetalMetalProcessViewSet,
+)
 
 router = DefaultRouter()
-router.register(r"setup_items", SetupItemViewSet)
-router.register(r"metals", MMetalViewSet)  # Register the MMetalViewSet
-router.register(
-    r"metalprocess", MMetalProcessViewSet
-)  # Register the MMetalProcessViewSet
+
+# Unrestricted CRUD endpoints
+router.register(r"m-items", MItemViewSet)
+router.register(r"m-metals", MMetalViewSet)
+router.register(r"m-metal-processes", MMetalProcessViewSet)
+router.register(r"m-processes", MProcessViewSet)
+
+# Restricted POST/DELETE-only endpoints
+router.register(r"trs-items-metals", MTrsItemsMetalsViewSet)
+router.register(r"trs-metals-metalprocess", MTrsMetalMetalProcessViewSet)
+router.register(r"trs-metalprocess-process", MTrsProcessViewSet)
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
