@@ -196,3 +196,43 @@ class Employee(models.Model):
 
     def __str__(self):
         return self.nEMPCODE
+
+
+class Customer(models.Model):
+    nId = models.AutoField(primary_key=True)  # Primary Key
+    nCUSCODE = models.CharField(max_length=50, unique=True)  # Customer Code
+    nCTId = models.IntegerField(null=True, blank=True)  # Customer Type ID
+    nActive = models.BooleanField(default=False)  # Active Status
+    nComName = models.CharField(max_length=255, null=True, blank=True)  # Company Name
+    nSurName = models.CharField(max_length=255, null=True, blank=True)  # Surname
+    nFirstName = models.CharField(max_length=255, null=True, blank=True)  # First Name
+    nAddress1 = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Address Line 1
+    nAddress2 = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Address Line 2
+    nAddress3 = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Address Line 3
+    nCity = models.CharField(max_length=100, null=True, blank=True)  # City
+    nState = models.CharField(max_length=100, null=True, blank=True)  # State
+    nPostCode = models.CharField(max_length=20, null=True, blank=True)  # Postcode
+    nPhone1 = models.CharField(max_length=20, null=True, blank=True)  # Phone 1
+    nPhone2 = models.CharField(max_length=20, null=True, blank=True)  # Phone 2
+    nMobile = models.CharField(max_length=20, null=True, blank=True)  # Mobile
+    nFax = models.CharField(max_length=20, null=True, blank=True)  # Fax
+    nEmail = models.EmailField(max_length=255, null=True, blank=True)  # Email
+    nWebsite = models.URLField(max_length=255, null=True, blank=True)  # Website
+    nCreditLimit = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0.0
+    )  # Credit Limit
+    nVAT = models.BooleanField(default=False)  # VAT Registration Status
+    nCreatedDate = models.DateTimeField(auto_now_add=True)  # Creation Date
+    nUpdatedDate = models.DateTimeField(auto_now=True)  # Update Date
+    nCreatedBy = models.CharField(max_length=50, null=True, blank=True)  # Created By
+    nUpdatedBy = models.CharField(max_length=50, null=True, blank=True)  # Updated By
+    nSMS = models.BooleanField(default=False)  # SMS Notifications
+
+    def __str__(self):
+        return f"{self.nCUSCODE} - {self.nComName}"

@@ -10,6 +10,7 @@ from .models import (
     MTrsMetalMetalProcess,
     MTrsProcess,
     Employee,
+    Customer,
 )
 from .serializers import (
     MItemSerializer,
@@ -20,6 +21,7 @@ from .serializers import (
     MTrsProcessSerializer,
     MTrsMetalMetalProcessSerializer,
     EmployeeSerializer,
+    CustomerSerializer,
 )
 
 
@@ -150,4 +152,28 @@ class EmployeeCreateView(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             # If not, create a new employee
+            return super().create(request, *args, **kwargs)
+
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing customers.
+    """
+
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+
+    def create(self, request, *args, **kwargs):
+        # Extract unique field nCUSCODE from request data
+        nCUSCODE = request.data.get("nCUSCODE")
+        customer = Customer.objects.filter(nCUSCODE=nCUSCODE).first()
+
+        if customer:
+            # Update the existing customer if it exists
+            serializer = self.get_serializer(customer, data=request.data, partial=False)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data, status=200)  # HTTP 200 OK
+        else:
+            # Create a new customer if it does not exist
             return super().create(request, *args, **kwargs)
