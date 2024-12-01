@@ -9,6 +9,7 @@ from .models import (
     MTrsMetalMetalProcess,
     Employee,
     Customer,
+    Ticket,
 )
 
 
@@ -134,3 +135,10 @@ class CustomerSerializer(serializers.ModelSerializer):
             "nUpdatedBy": {"required": False},
             "nSMS": {"required": True},
         }
+
+
+class TicketSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ticket
+        fields = "__all__"
+        unique_field = "nTKTCODE"
