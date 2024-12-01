@@ -1,4 +1,5 @@
 from django.db import models
+import uuid  # For UUIDField
 
 
 class SetupCompany(models.Model):
@@ -151,3 +152,47 @@ class MTrsProcess(models.Model):
 
     def __str__(self):
         return f"{self.process.pr_id} - {self.metal_process.mepr_id}"
+
+
+class Employee(models.Model):
+    nId = models.AutoField(primary_key=True)  # Primary Key
+    nEMPCODE = models.CharField(max_length=50, unique=True)  # Employee Code
+    nUserRole = models.IntegerField(null=True, blank=True)  # User Role
+    nActive = models.BooleanField(default=False)  # Active status
+    nFirstName = models.CharField(max_length=100, null=True, blank=True)  # First Name
+    nSurName = models.CharField(max_length=100, null=True, blank=True)  # Surname
+    nAddress1 = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Address line 1
+    nAddress2 = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Address line 2
+    nAddress3 = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Address line 3
+    nTown = models.CharField(max_length=100, null=True, blank=True)  # Town
+    nPostCode = models.CharField(max_length=20, null=True, blank=True)  # Postcode
+    nPhone = models.CharField(max_length=20, null=True, blank=True)  # Phone
+    nMobile = models.CharField(max_length=20, null=True, blank=True)  # Mobile
+    nEmail = models.EmailField(max_length=100, null=True, blank=True)  # Email
+    nBasicSal = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0.0
+    )  # Basic Salary
+    nOverTime = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0.0
+    )  # Overtime
+    nNoOfAppLeave = models.IntegerField(default=0)  # Number of Approved Leaves
+    nLeaveTaken = models.IntegerField(default=0)  # Number of Leaves Taken
+    nCreatedDate = models.DateTimeField(auto_now_add=True)  # Creation Date
+    nUpdatedDate = models.DateTimeField(auto_now=True)  # Update Date
+    nCreatedBy = models.CharField(max_length=50, null=True, blank=True)  # Created By
+    nUpdatedBy = models.CharField(max_length=50, null=True, blank=True)  # Updated By
+    nFSID = models.UUIDField(
+        default=uuid.uuid4, unique=True, editable=False
+    )  # Foreign System ID (GUID)
+    nImage = models.TextField(null=True, blank=True)  # Image
+    nPwdHash = models.CharField(max_length=256, null=True, blank=True)  # Password Hash
+    nPwdSalt = models.CharField(max_length=256, null=True, blank=True)  # Password Salt
+
+    def __str__(self):
+        return self.nEMPCODE
