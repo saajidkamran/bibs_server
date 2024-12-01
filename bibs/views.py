@@ -11,6 +11,7 @@ from .models import (
     MTrsProcess,
     Employee,
     Customer,
+    Ticket,
 )
 from .serializers import (
     MItemSerializer,
@@ -22,6 +23,7 @@ from .serializers import (
     MTrsMetalMetalProcessSerializer,
     EmployeeSerializer,
     CustomerSerializer,
+    TicketSerializer,
 )
 
 
@@ -153,3 +155,8 @@ class CustomerViewSet(BaseModelViewSet):
 
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
+
+
+class TicketViewSet(BaseModelViewSet):
+    queryset = Ticket.objects.all()
+    serializer_class = TicketSerializer

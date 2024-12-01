@@ -236,3 +236,43 @@ class Customer(models.Model):
 
     def __str__(self):
         return f"{self.nCUSCODE} - {self.nComName}"
+
+
+class Ticket(models.Model):
+    nId = models.AutoField(primary_key=True)  # Primary Key
+    nTKTCODE = models.CharField(max_length=20, unique=True)  # Ticket Code
+    nStatID = models.IntegerField()  # Status ID
+    customer = models.ForeignKey(
+        Customer, on_delete=models.CASCADE, related_name="tickets"
+    )  # Foreign Key to Customer (one-to-many)
+    nDocNo = models.CharField(max_length=50, null=True, blank=True)  # Document Number
+    nDueDate = models.DateField()  # Due Date
+    nDueTime = models.TimeField()  # Due Time
+    nTItems = models.IntegerField(default=0)  # Total Items
+    nCalVat = models.DecimalField(max_digits=10, decimal_places=2)  # VAT Calculation
+    nCostNoVAT = models.DecimalField(
+        max_digits=10, decimal_places=2
+    )  # Cost Without VAT
+    nTCost = models.DecimalField(max_digits=10, decimal_places=2)  # Total Cost
+    nTPaid = models.DecimalField(max_digits=10, decimal_places=2)  # Total Paid
+    nTDue = models.DecimalField(max_digits=10, decimal_places=2)  # Total Due
+    multipleImages = models.BooleanField(default=False)  # Multiple Images
+    isCashCustomer = models.BooleanField(default=False)  # Cash Customer
+    isCusNotSigned = models.BooleanField(default=False)  # Customer Not Signed
+    nFSID = models.UUIDField(default=None, null=True, blank=True)  # FSID (GUID)
+    nCusSignImage = models.TextField(null=True, blank=True)  # Customer Signed Image
+    nComments = models.TextField(null=True, blank=True)  # Comments
+    nActive = models.BooleanField(default=True)  # Active Status
+    nInvoice = models.BooleanField(default=False)  # Invoice Status
+    nAcceptedDate = models.DateTimeField(null=True, blank=True)  # Accepted Date
+    nReadyDate = models.DateTimeField(null=True, blank=True)  # Ready Date
+    nReleasedDate = models.DateTimeField(null=True, blank=True)  # Released Date
+    nAcceptedBy = models.CharField(max_length=50, null=True, blank=True)  # Accepted By
+    nReadyBy = models.CharField(max_length=50, null=True, blank=True)  # Ready By
+    nReleasedBy = models.CharField(max_length=50, null=True, blank=True)  # Released By
+
+    def __str__(self):
+        return self.nTKTCODE
+
+    class Meta:
+        db_table = "tb_tickets"  # Set table name
