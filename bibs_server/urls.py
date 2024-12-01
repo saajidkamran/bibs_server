@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from bibs.views import (
+    JobViewSet,
     MItemViewSet,
     MMetalViewSet,
     MMetalProcessViewSet,
@@ -44,6 +45,10 @@ router.register(
 )  # Employee CRUD ndpoint
 router.register(r"customers", CustomerViewSet)
 router.register(r"tickets", TicketViewSet)
+router.register(
+    r"jobs",
+    JobViewSet,
+)
 
 # Restricted POST/DELETE-only endpoints
 router.register(r"trs-items-metals", MTrsItemsMetalsViewSet)

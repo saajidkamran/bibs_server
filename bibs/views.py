@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from .models import (
+    Job,
     MItem,
     MMetal,
     MMetalProcess,
@@ -14,6 +15,7 @@ from .models import (
     Ticket,
 )
 from .serializers import (
+    JobSerializer,
     MItemSerializer,
     MMetalSerializer,
     MMetalProcessSerializer,
@@ -160,3 +162,8 @@ class CustomerViewSet(BaseModelViewSet):
 class TicketViewSet(BaseModelViewSet):
     queryset = Ticket.objects.all()
     serializer_class = TicketSerializer
+
+
+class JobViewSet(BaseModelViewSet):
+    queryset = Job.objects.all()
+    serializer_class = JobSerializer

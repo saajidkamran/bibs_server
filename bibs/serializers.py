@@ -10,6 +10,7 @@ from .models import (
     Employee,
     Customer,
     Ticket,
+    Job,
 )
 
 
@@ -142,3 +143,10 @@ class TicketSerializer(serializers.ModelSerializer):
         model = Ticket
         fields = "__all__"
         unique_field = "nTKTCODE"
+
+
+class JobSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Job
+        fields = "__all__"
+        unique_field = "nJOBCODE"
