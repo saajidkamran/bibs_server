@@ -276,3 +276,29 @@ class Ticket(models.Model):
 
     class Meta:
         db_table = "tb_tickets"  # Set table name
+
+
+class Job(models.Model):
+    nId = models.AutoField(primary_key=True)  # Primary Key
+    ticket = models.ForeignKey(
+        Ticket, on_delete=models.CASCADE, related_name="jobs"
+    )  # Foreign Key to Ticket (one-to-many relationship)
+    nJOBCODE = models.CharField(max_length=50, unique=True)  # Job Code
+    nJStatID = models.IntegerField()  # Job Status ID
+    nIQty = models.IntegerField(default=1)  # Item Quantity
+    nPrice = models.DecimalField(max_digits=10, decimal_places=2)  # Price
+    nFSID = models.UUIDField(default=None, null=True, blank=True)  # FSID (GUID)
+    nImage = models.TextField(null=True, blank=True)  # Image data
+    nItem = models.CharField(max_length=255, null=True, blank=True)  # Item Description
+    nMetal = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Metal Description
+    nJobDesc = models.TextField(null=True, blank=True)  # Job Description
+    nJobDescHTML = models.TextField(null=True, blank=True)  # Job Description (HTML)
+    nActive = models.BooleanField(default=True)  # Active Status
+
+    def __str__(self):
+        return self.nJOBCODE
+
+    class Meta:
+        db_table = "tb_jobs"  # Set table name
