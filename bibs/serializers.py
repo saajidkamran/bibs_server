@@ -8,6 +8,7 @@ from .models import (
     MTrsProcess,
     MTrsMetalMetalProcess,
     Employee,
+    Customer,
 )
 
 
@@ -97,4 +98,35 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "nUpdatedBy": {"required": False},
             "nPwdHash": {"required": True},
             "nPwdSalt": {"required": True},
+        }
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = "__all__"
+        extra_kwargs = {
+            "nCUSCODE": {"required": True},
+            "nCTId": {"required": True},
+            "nActive": {"required": True},
+            "nComName": {"required": True},
+            "nSurName": {"required": True},
+            "nFirstName": {"required": True},
+            "nAddress1": {"required": True},
+            "nAddress2": {"required": False},
+            "nAddress3": {"required": False},
+            "nCity": {"required": True},
+            "nState": {"required": True},
+            "nPostCode": {"required": True},
+            "nPhone1": {"required": True},
+            "nPhone2": {"required": True},
+            "nMobile": {"required": True},
+            "nFax": {"required": True},
+            "nEmail": {"required": True},
+            "nWebsite": {"required": True},
+            "nCreditLimit": {"required": True},
+            "nVAT": {"required": True},
+            "nCreatedBy": {"required": False},
+            "nUpdatedBy": {"required": False},
+            "nSMS": {"required": True},
         }

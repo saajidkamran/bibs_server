@@ -27,6 +27,7 @@ from bibs.views import (
     MTrsProcessViewSet,
     MTrsMetalMetalProcessViewSet,
     EmployeeCreateView,
+    CustomerViewSet,
 )
 
 router = DefaultRouter()
@@ -40,7 +41,7 @@ router.register(
     r"employees",
     EmployeeCreateView,
 )  # Employee CRUD ndpoint
-
+router.register(r"customers", CustomerViewSet)
 # Restricted POST/DELETE-only endpoints
 router.register(r"trs-items-metals", MTrsItemsMetalsViewSet)
 router.register(r"trs-metals-metalprocess", MTrsMetalMetalProcessViewSet)
