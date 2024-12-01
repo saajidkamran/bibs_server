@@ -75,6 +75,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee
         fields = "__all__"  # Include all fields
+        unique_field = "nEMPCODE"
+
         extra_kwargs = {
             "nId": {"read_only": True},  # nId is auto-generated, so make it read-only
             "nEMPCODE": {"required": True},
@@ -105,6 +107,8 @@ class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
         fields = "__all__"
+        unique_field = "nCUSCODE"
+
         extra_kwargs = {
             "nCUSCODE": {"required": True},
             "nCTId": {"required": True},

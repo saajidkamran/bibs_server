@@ -59,6 +59,14 @@ class BaseModelViewSet(viewsets.ModelViewSet):
             # Create a new record
             return super().create(request, *args, **kwargs)
 
+    def destroy(self, request, *args, **kwargs):
+        # Get the object instance to delete
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(
+            {"Response": "Successfully deleted."}, status=status.HTTP_200_OK
+        )
+
 
 class BaseRestrictedViewSet(viewsets.ModelViewSet):
     """
@@ -129,7 +137,7 @@ class MTrsMetalMetalProcessViewSet(BaseRestrictedViewSet):
     serializer_class = MTrsMetalMetalProcessSerializer
 
 
-class EmployeeCreateView(viewsets.ModelViewSet):
+class EmployeeCreateView(BaseModelViewSet):
     """
     API view to create or update an employee based on nEMPCODE.
     """
@@ -137,43 +145,11 @@ class EmployeeCreateView(viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
 
-    def create(self, request, *args, **kwargs):
-        # Extract the unique identifier (e.g., nEMPCODE) from the request data
-        nEMPCODE = request.data.get("nEMPCODE")
 
-        # Check if an employee with the same nEMPCODE exists
-        employee = Employee.objects.filter(nEMPCODE=nEMPCODE).first()
-
-        if employee:
-            # If exists, update the employee
-            serializer = self.get_serializer(employee, data=request.data, partial=False)
-            serializer.is_valid(raise_exception=True)
-            self.perform_update(serializer)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            # If not, create a new employee
-            return super().create(request, *args, **kwargs)
-
-
-class CustomerViewSet(viewsets.ModelViewSet):
+class CustomerViewSet(BaseModelViewSet):
     """
     API endpoint for managing customers.
     """
 
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
-
-    def create(self, request, *args, **kwargs):
-        # Extract unique field nCUSCODE from request data
-        nCUSCODE = request.data.get("nCUSCODE")
-        customer = Customer.objects.filter(nCUSCODE=nCUSCODE).first()
-
-        if customer:
-            # Update the existing customer if it exists
-            serializer = self.get_serializer(customer, data=request.data, partial=False)
-            serializer.is_valid(raise_exception=True)
-            self.perform_update(serializer)
-            return Response(serializer.data, status=200)  # HTTP 200 OK
-        else:
-            # Create a new customer if it does not exist
-            return super().create(request, *args, **kwargs)
