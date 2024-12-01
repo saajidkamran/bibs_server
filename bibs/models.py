@@ -302,3 +302,20 @@ class Job(models.Model):
 
     class Meta:
         db_table = "tb_jobs"  # Set table name
+
+
+class JobImage(models.Model):
+    nId = models.AutoField(primary_key=True)  # Primary Key
+    job = models.ForeignKey(
+        Job, on_delete=models.CASCADE, related_name="images"
+    )  # Foreign Key to Job (one-to-many relationship)
+    nTKTCODE = models.CharField(max_length=50)  # Ticket Code
+    nJOBCODE = models.CharField(max_length=50)  # Job Code
+    img_id = models.CharField(max_length=100, unique=True)  # Image ID
+    img_location = models.TextField()  # Image Location or Base64 Data
+
+    def __str__(self):
+        return self.img_id
+
+    class Meta:
+        db_table = "tb_jobs_images"  # Set table name

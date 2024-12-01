@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import (
+    JobImage,
     MItem,
     MMetal,
     MMetalProcess,
@@ -150,3 +151,10 @@ class JobSerializer(serializers.ModelSerializer):
         model = Job
         fields = "__all__"
         unique_field = "nJOBCODE"
+
+
+class JobImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobImage
+        fields = "__all__"
+        unique_field = "img_id"

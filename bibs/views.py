@@ -3,6 +3,7 @@ from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from .models import (
     Job,
+    JobImage,
     MItem,
     MMetal,
     MMetalProcess,
@@ -15,6 +16,7 @@ from .models import (
     Ticket,
 )
 from .serializers import (
+    JobImageSerializer,
     JobSerializer,
     MItemSerializer,
     MMetalSerializer,
@@ -167,3 +169,8 @@ class TicketViewSet(BaseModelViewSet):
 class JobViewSet(BaseModelViewSet):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
+
+
+class JobImageViewSet(BaseModelViewSet):
+    queryset = JobImage.objects.all()
+    serializer_class = JobImageSerializer
