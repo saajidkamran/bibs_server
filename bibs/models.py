@@ -28,6 +28,7 @@ class SetupCompany(models.Model):
 class MItem(models.Model):
     it_id = models.CharField(max_length=10, primary_key=True)
     desc = models.CharField(max_length=50)
+    seq_no = models.CharField(max_length=10)
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
     created_by = models.CharField(max_length=50, blank=True, null=True)

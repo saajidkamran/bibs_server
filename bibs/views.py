@@ -1,5 +1,6 @@
+from django.forms import ValidationError
 from rest_framework import viewsets, status
-from rest_framework.generics import CreateAPIView
+from django.db import models  # Import models for aggregate functions
 from rest_framework.response import Response
 from .models import (
     Job,
@@ -34,44 +35,82 @@ from .serializers import (
 class BaseModelViewSet(viewsets.ModelViewSet):
     """
     A base viewset that enforces:
-    1. Custom delete responses.
-    2. Validation for mandatory 'updated_by' field.
-    3. Upsert behavior on create.
+    - Mandatory 'created_by' when creating a record.
+    - Optional 'updated_by' during creation.
+    - Mandatory 'updated_by' when updating a record.
+    - Optional 'created_by' during updates.
     """
 
+    def generate_unique_id(self, prefix, model, field_name):
+        # Get the current maximum ID for the field
+        max_id = model.objects.aggregate(models.Max(field_name))[f"{field_name}__max"]
+        if max_id:
+            # Extract numeric part and increment it
+            numeric_part = int(max_id.replace(prefix, ""))
+            next_id = numeric_part + 1
+        else:
+            next_id = 1
+        return f"{prefix}{next_id:05d}"
+
     def create(self, request, *args, **kwargs):
-        # Get the unique identifier for upsert logic (defined in each serializer)
         unique_field_name = self.serializer_class.Meta.unique_field
         unique_field_value = request.data.get(unique_field_name)
 
         if not unique_field_value:
-            return Response(
-                {unique_field_name: f"{unique_field_name} is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            # Determine the prefix based on the model
+            prefix = ""
+            if unique_field_name == "it_id":
+                prefix = "itm"
+            elif unique_field_name == "met_id":
+                prefix = "met"
+            elif unique_field_name == "mepr_id":
+                prefix = "mpr"
+            elif unique_field_name == "pr_id":
+                prefix = "prc"
+            # Add other cases if needed
 
-        # Check if the record exists
+            # Generate the unique ID
+            unique_field_value = self.generate_unique_id(
+                prefix, self.queryset.model, unique_field_name
+            )
+            request.data[unique_field_name] = unique_field_value
+
+        # Check if the record already exists
         instance = self.queryset.filter(
             **{unique_field_name: unique_field_value}
         ).first()
 
         if instance:
-            # Update the existing record
+            # Update existing record
+            if "user" not in request.data or not request.data["user"]:
+                raise ValidationError(
+                    {"updated_by": "This field is required for updates."}
+                )
+            request.data["updated_by"] = request.data.pop("user")
+
             serializer = self.get_serializer(instance, data=request.data, partial=False)
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            # Create a new record
+            # Ensure the 'user' field is provided in the payload
+            if "user" not in request.data or not request.data["user"]:
+                raise ValidationError({"user": "This field is required for creation."})
+
+            # Map 'user' to 'created_by'
+            request.data["created_by"] = request.data.pop("user")
+
             return super().create(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
-        # Get the object instance to delete
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response(
-            {"Response": "Successfully deleted."}, status=status.HTTP_200_OK
-        )
+    def update(self, request, *args, **kwargs):
+        # Ensure the 'user' field is provided in the payload
+        if "user" not in request.data or not request.data["user"]:
+            raise ValidationError({"user": "This field is required for updates."})
+
+        # Map 'user' to 'updated_by'
+        request.data["updated_by"] = request.data.pop("user")
+
+        return super().update(request, *args, **kwargs)
 
 
 class BaseRestrictedViewSet(viewsets.ModelViewSet):
