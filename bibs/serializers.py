@@ -21,10 +21,18 @@ class BaseSerializer(serializers.ModelSerializer):
     """
 
     def validate(self, data):
-        if self.instance and "updated_by" not in data:
-            raise serializers.ValidationError(
-                {"updated_by": "This field is required for updates."}
-            )
+        if self.instance:
+            # Validation for updates
+            if "updated_by" not in data or not data["updated_by"]:
+                raise serializers.ValidationError(
+                    {"updated_by": "This field is required for updates."}
+                )
+        else:
+            # Validation for creation
+            if "created_by" not in data or not data["created_by"]:
+                raise serializers.ValidationError(
+                    {"created_by": "This field is required for creation."}
+                )
         return data
 
 
