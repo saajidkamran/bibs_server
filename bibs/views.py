@@ -2,6 +2,7 @@ from django.forms import ValidationError
 from rest_framework import viewsets, status
 from django.db import models  # Import models for aggregate functions
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from .models import (
     Job,
     JobImage,
@@ -166,20 +167,185 @@ class MProcessViewSet(BaseModelViewSet):
     serializer_class = MProcessSerializer
 
 
-# Restricted API for TRS Tables
 class MTrsItemsMetalsViewSet(BaseRestrictedViewSet):
     queryset = MTrsItemsMetals.objects.all()
     serializer_class = MTrsItemsMetalsSerializer
+
+    @action(detail=True, methods=["get"], url_path="metals")
+    def retrieve_metals(self, request, pk=None):
+        """
+        Custom endpoint to retrieve all metal IDs (`metal_id`) for a given item ID (`item_id`).
+        """
+        try:
+            item_id = pk  # The item ID passed in the URL
+            # Filter using the correct field name: item_id
+            related_metals = self.queryset.filter(item_id=item_id).values_list(
+                "metal_id", flat=True
+            )
+            return Response(
+                {"met_ids": list(related_metals)}, status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["delete"], url_path="delete-metal")
+    def delete_metal(self, request):
+        """
+        Custom endpoint to delete a specific metal_id associated with an item_id.
+        """
+        try:
+            item_id = request.query_params.get("item_id")
+            metal_id = request.query_params.get("metal_id")
+
+            if not item_id or not metal_id:
+                return Response(
+                    {"error": "Both item_id and metal_id must be provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Filter the specific record
+            obj = self.queryset.filter(item_id=item_id, metal_id=metal_id).first()
+
+            if not obj:
+                return Response(
+                    {"error": "Record not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Delete the record
+            obj.delete()
+            return Response(
+                {
+                    "message": f"Metal ID '{metal_id}' successfully deleted for Item ID '{item_id}'."
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class MTrsProcessViewSet(BaseRestrictedViewSet):
     queryset = MTrsProcess.objects.all()
     serializer_class = MTrsProcessSerializer
 
+    @action(detail=True, methods=["get"], url_path="processes")
+    def retrieve_processes(self, request, pk=None):
+        """
+        Custom endpoint to retrieve all process IDs (`pr_id`) for a given metal ID (`metal_id`).
+        """
+        try:
+            metal_id = pk  # The metal ID passed in the URL
+            related_processes = self.queryset.filter(metal_id=metal_id).values_list(
+                "pr_id", flat=True
+            )
+            return Response(
+                {"pr_ids": list(related_processes)}, status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["delete"], url_path="delete-metal-process")
+    def delete_metal_process(self, request):
+        """
+        Custom endpoint to delete a specific metal_process associated with a metal.
+        """
+        try:
+            metal_id = request.query_params.get("metal_id")
+            metal_process_id = request.query_params.get("metal_process_id")
+
+            if not metal_id or not metal_process_id:
+                return Response(
+                    {"error": "Both metal_id and metal_process_id must be provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Filter the specific record
+            obj = self.queryset.filter(
+                metal__met_id=metal_id, metal_process__mepr_id=metal_process_id
+            ).first()
+
+            if not obj:
+                return Response(
+                    {"error": "Record not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Delete the record
+            obj.delete()
+            return Response(
+                {
+                    "message": f"Metal process ID '{metal_process_id}' successfully deleted for Metal ID '{metal_id}'."
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class MTrsMetalMetalProcessViewSet(BaseRestrictedViewSet):
     queryset = MTrsMetalMetalProcess.objects.all()
     serializer_class = MTrsMetalMetalProcessSerializer
+
+    @action(detail=True, methods=["get"], url_path="metal-processes")
+    def retrieve_metal_processes(self, request, pk=None):
+        """
+        Custom endpoint to retrieve all metal-process IDs (`mepr_id`) for a given metal ID (`metal_id`).
+        """
+        try:
+            # Use the primary key (pk) to identify the metal ID
+            metal_id = pk  # The metal ID passed in the URL
+
+            # Query the database for related metal processes
+            related_metal_processes = self.queryset.filter(
+                metal__met_id=metal_id  # Ensure correct field lookup
+            ).values_list("metal_process__mepr_id", flat=True)
+
+            # Return the response with the list of related metal process IDs
+            return Response(
+                {"mepr_ids": list(related_metal_processes)}, status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["delete"], url_path="delete-metal-process")
+    def delete_metal_process(self, request):
+        """
+        Custom endpoint to delete a specific metal_process associated with a metal.
+        """
+        try:
+            metal_id = request.query_params.get("metal_id")
+            metal_process_id = request.query_params.get("metal_process_id")
+
+            if not metal_id or not metal_process_id:
+                return Response(
+                    {"error": "Both metal_id and metal_process_id must be provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Filter the specific record
+            obj = self.queryset.filter(
+                metal__met_id=metal_id, metal_process__mepr_id=metal_process_id
+            ).first()
+
+            if not obj:
+                return Response(
+                    {"error": "Record not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Delete the record
+            obj.delete()
+            return Response(
+                {
+                    "message": f"Metal process ID '{metal_process_id}' successfully deleted for Metal ID '{metal_id}'."
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class EmployeeCreateView(BaseModelViewSet):
