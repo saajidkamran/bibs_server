@@ -90,7 +90,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
         extra_kwargs = {
             "nId": {"read_only": True},  # nId is auto-generated, so make it read-only
-            "nEMPCODE": {"required": True},
+            "nEMPCODE": {"required": False},
             "nUserRole": {"required": True},
             "nActive": {"required": True},
             "nFirstName": {"required": True},
@@ -105,12 +105,12 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "nEmail": {"required": True},
             "nBasicSal": {"required": True},
             "nOverTime": {"required": True},
-            "nNoOfAppLeave": {"required": True},
-            "nLeaveTaken": {"required": True},
+            "nNoOfAppLeave": {"required": False},
+            "nLeaveTaken": {"required": False},
             "nCreatedBy": {"required": False},
             "nUpdatedBy": {"required": False},
-            "nPwdHash": {"required": True},
-            "nPwdSalt": {"required": True},
+            "nPwdHash": {"required": False},
+            "nPwdSalt": {"required": False},
         }
 
 
