@@ -43,11 +43,12 @@ class BaseModelViewSet(viewsets.ModelViewSet):
     """
 
     def generate_unique_id(self, prefix, model, field_name):
-        # Get the current maximum ID for the field
         max_id = model.objects.aggregate(models.Max(field_name))[f"{field_name}__max"]
         if max_id:
+            if not max_id.startswith(prefix):
+                raise ValueError(f"Invalid max_id format: {max_id}")
             # Extract numeric part and increment it
-            numeric_part = int(max_id.replace(prefix, ""))
+            numeric_part = int(max_id.replace(prefix, "").lstrip("0") or "0")
             next_id = numeric_part + 1
         else:
             next_id = 1
@@ -62,12 +63,14 @@ class BaseModelViewSet(viewsets.ModelViewSet):
             prefix = ""
             if unique_field_name == "it_id":
                 prefix = "itm"
-            elif unique_field_name == "met_id":
+            if unique_field_name == "met_id":
                 prefix = "met"
-            elif unique_field_name == "mepr_id":
+            if unique_field_name == "mepr_id":
                 prefix = "mpr"
-            elif unique_field_name == "pr_id":
+            if unique_field_name == "pr_id":
                 prefix = "prc"
+            if unique_field_name == "nEMPCODE":
+                prefix = "emp"
             # Add other cases if needed
 
             # Generate the unique ID
@@ -87,7 +90,10 @@ class BaseModelViewSet(viewsets.ModelViewSet):
                 raise ValidationError(
                     {"updated_by": "This field is required for updates."}
                 )
-            request.data["updated_by"] = request.data.pop("user")
+            if request.data["nEMPCODE"]:
+                request.data["nUpdatedBy"] = request.data.pop("user")
+            else:
+                request.data["updated_by"] = request.data.pop("user")
 
             serializer = self.get_serializer(instance, data=request.data, partial=False)
             serializer.is_valid(raise_exception=True)
@@ -99,7 +105,10 @@ class BaseModelViewSet(viewsets.ModelViewSet):
                 raise ValidationError({"user": "This field is required for creation."})
 
             # Map 'user' to 'created_by'
-            request.data["created_by"] = request.data.pop("user")
+            if request.data["nEMPCODE"]:
+                request.data["nCreatedBy"] = request.data.pop("user")
+            else:
+                request.data["created_by"] = request.data.pop("user")
 
             return super().create(request, *args, **kwargs)
 
@@ -108,8 +117,10 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         if "user" not in request.data or not request.data["user"]:
             raise ValidationError({"user": "This field is required for updates."})
 
-        # Map 'user' to 'updated_by'
-        request.data["updated_by"] = request.data.pop("user")
+        if request.data["nEMPCODE"]:
+            request.data["nUpdatedBy"] = request.data.pop("user")
+        else:
+            request.data["updated_by"] = request.data.pop("user")
 
         return super().update(request, *args, **kwargs)
 
