@@ -105,6 +105,7 @@ class MTrsItemsMetals(models.Model):
     metal = models.ForeignKey(
         MMetal, on_delete=models.CASCADE, db_column="met_id"
     )  # Foreign key to MMetal
+    seq_no = models.IntegerField(default=0)  # Sequence Number
 
     class Meta:
         db_table = "M_trs_items_metals"  # Renamed table
@@ -123,7 +124,8 @@ class MTrsMetalMetalProcess(models.Model):
     )  # Foreign key to MItem
     metal_process = models.ForeignKey(
         MMetalProcess, on_delete=models.CASCADE, db_column="mepr_id"
-    )  # Foreign key to MMetal
+    )  # Foreign key to MMetalProcess
+    seq_no = models.IntegerField(default=0)  # Sequence Number
 
     class Meta:
         db_table = "M_trs_metals_metalprocess"  # Renamed table
@@ -142,14 +144,15 @@ class MTrsProcess(models.Model):
     )  # Foreign key to MItem
     metal_process = models.ForeignKey(
         MMetalProcess, on_delete=models.CASCADE, db_column="mepr_id"
-    )  # Foreign key to MMetal
+    )  # Foreign key to MMetalProcess
+    seq_no = models.IntegerField(default=0)  # Sequence Number
 
     class Meta:
         db_table = "M_trs_process"  # Renamed table
         unique_together = (
             "metal_process",
             "process",
-        )  # Ensure unique combinations of item and metal
+        )  # Ensure unique combinations of metal_process and process
 
     def __str__(self):
         return f"{self.process.pr_id} - {self.metal_process.mepr_id}"
@@ -200,109 +203,107 @@ class Employee(models.Model):
 
 
 class Customer(models.Model):
-    nId = models.AutoField(primary_key=True)  # Primary Key
-    nCUSCODE = models.CharField(max_length=50, unique=True)  # Customer Code
-    nCTId = models.IntegerField(null=True, blank=True)  # Customer Type ID
-    nActive = models.BooleanField(default=False)  # Active Status
-    nComName = models.CharField(max_length=255, null=True, blank=True)  # Company Name
-    nSurName = models.CharField(max_length=255, null=True, blank=True)  # Surname
-    nFirstName = models.CharField(max_length=255, null=True, blank=True)  # First Name
-    nAddress1 = models.CharField(
-        max_length=255, null=True, blank=True
-    )  # Address Line 1
-    nAddress2 = models.CharField(
-        max_length=255, null=True, blank=True
-    )  # Address Line 2
-    nAddress3 = models.CharField(
-        max_length=255, null=True, blank=True
-    )  # Address Line 3
-    nCity = models.CharField(max_length=100, null=True, blank=True)  # City
-    nState = models.CharField(max_length=100, null=True, blank=True)  # State
-    nPostCode = models.CharField(max_length=20, null=True, blank=True)  # Postcode
-    nPhone1 = models.CharField(max_length=20, null=True, blank=True)  # Phone 1
-    nPhone2 = models.CharField(max_length=20, null=True, blank=True)  # Phone 2
-    nMobile = models.CharField(max_length=20, null=True, blank=True)  # Mobile
-    nFax = models.CharField(max_length=20, null=True, blank=True)  # Fax
-    nEmail = models.EmailField(max_length=255, null=True, blank=True)  # Email
-    nWebsite = models.URLField(max_length=255, null=True, blank=True)  # Website
-    nCreditLimit = models.DecimalField(
-        max_digits=15, decimal_places=2, default=0.0
-    )  # Credit Limit
-    nVAT = models.BooleanField(default=False)  # VAT Registration Status
-    nCreatedDate = models.DateTimeField(auto_now_add=True)  # Creation Date
-    nUpdatedDate = models.DateTimeField(auto_now=True)  # Update Date
-    nCreatedBy = models.CharField(max_length=50, null=True, blank=True)  # Created By
-    nUpdatedBy = models.CharField(max_length=50, null=True, blank=True)  # Updated By
-    nSMS = models.BooleanField(default=False)  # SMS Notifications
+    nCUSCODE = models.CharField(max_length=50, primary_key=True)  # Primary Key
+    nCTId = models.IntegerField(null=True, blank=True)
+    nActive = models.BooleanField(default=False)
+    nComName = models.CharField(max_length=255, null=True, blank=True)
+    nSurName = models.CharField(max_length=255, null=True, blank=True)
+    nFirstName = models.CharField(max_length=255, null=True, blank=True)
+    nAddress1 = models.CharField(max_length=255, null=True, blank=True)
+    nAddress2 = models.CharField(max_length=255, null=True, blank=True)
+    nAddress3 = models.CharField(max_length=255, null=True, blank=True)
+    nCity = models.CharField(max_length=100, null=True, blank=True)
+    nState = models.CharField(max_length=100, null=True, blank=True)
+    nPostCode = models.CharField(max_length=20, null=True, blank=True)
+    nPhone1 = models.CharField(max_length=20, null=True, blank=True)
+    nPhone2 = models.CharField(max_length=20, null=True, blank=True)
+    nMobile = models.CharField(max_length=20, null=True, blank=True)
+    nFax = models.CharField(max_length=20, null=True, blank=True)
+    nEmail = models.EmailField(max_length=255, null=True, blank=True)
+    nWebsite = models.URLField(max_length=255, null=True, blank=True)
+    nCreditLimit = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
+    nVAT = models.BooleanField(default=False)
+    nCreatedDate = models.DateTimeField(auto_now_add=True)
+    nUpdatedDate = models.DateTimeField(auto_now=True)
+    nCreatedBy = models.CharField(max_length=50, null=True, blank=True)
+    nUpdatedBy = models.CharField(max_length=50, null=True, blank=True)
+    nSMS = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.nCUSCODE} - {self.nComName}"
 
+    class Meta:
+        db_table = "bibs_customer"
+
 
 class Ticket(models.Model):
-    nId = models.AutoField(primary_key=True)  # Primary Key
-    nTKTCODE = models.CharField(max_length=20, unique=True)  # Ticket Code
+    nTKTCODE = models.CharField(max_length=20, primary_key=True, unique=True)
     nStatID = models.IntegerField()  # Status ID
+
     customer = models.ForeignKey(
-        Customer, on_delete=models.CASCADE, related_name="tickets"
-    )  # Foreign Key to Customer (one-to-many)
-    nDocNo = models.CharField(max_length=50, null=True, blank=True)  # Document Number
-    nDueDate = models.DateField()  # Due Date
-    nDueTime = models.TimeField()  # Due Time
-    nTItems = models.IntegerField(default=0)  # Total Items
-    nCalVat = models.DecimalField(max_digits=10, decimal_places=2)  # VAT Calculation
-    nCostNoVAT = models.DecimalField(
-        max_digits=10, decimal_places=2
-    )  # Cost Without VAT
-    nTCost = models.DecimalField(max_digits=10, decimal_places=2)  # Total Cost
-    nTPaid = models.DecimalField(max_digits=10, decimal_places=2)  # Total Paid
-    nTDue = models.DecimalField(max_digits=10, decimal_places=2)  # Total Due
-    multipleImages = models.BooleanField(default=False)  # Multiple Images
-    isCashCustomer = models.BooleanField(default=False)  # Cash Customer
-    isCusNotSigned = models.BooleanField(default=False)  # Customer Not Signed
-    nFSID = models.UUIDField(default=None, null=True, blank=True)  # FSID (GUID)
-    nCusSignImage = models.TextField(null=True, blank=True)  # Customer Signed Image
-    nComments = models.TextField(null=True, blank=True)  # Comments
-    nActive = models.BooleanField(default=True)  # Active Status
-    nInvoice = models.BooleanField(default=False)  # Invoice Status
-    nAcceptedDate = models.DateTimeField(auto_now_add=True)  # Accepted Date
-    nReadyDate = models.DateTimeField(null=True, blank=True)  # Ready Date
-    nReleasedDate = models.DateTimeField(null=True, blank=True)  # Released Date
-    nAcceptedBy = models.CharField(max_length=50, null=True, blank=True)  # Accepted By
-    nReadyBy = models.CharField(max_length=50, null=True, blank=True)  # Ready By
-    nReleasedBy = models.CharField(max_length=50, null=True, blank=True)  # Released By
+        Customer,
+        to_field="nCUSCODE",
+        db_column="nCUSCODE",
+        on_delete=models.CASCADE,
+        related_name="tickets",
+    )
+    nDocNo = models.CharField(max_length=50, null=True, blank=True)
+    nDueDate = models.DateField()
+    nDueTime = models.TimeField()
+    nTItems = models.IntegerField(default=0)
+    nCalVat = models.DecimalField(max_digits=10, decimal_places=2)
+    nCostNoVAT = models.DecimalField(max_digits=10, decimal_places=2)
+    nTCost = models.DecimalField(max_digits=10, decimal_places=2)
+    nTPaid = models.DecimalField(max_digits=10, decimal_places=2)
+    nTDue = models.DecimalField(max_digits=10, decimal_places=2)
+    multipleImages = models.BooleanField(default=False)
+    isCashCustomer = models.BooleanField(default=False)
+    isCusNotSigned = models.BooleanField(default=False)
+    nFSID = models.UUIDField(default=None, null=True, blank=True)
+    nCusSignImage = models.TextField(null=True, blank=True)
+    nComments = models.TextField(null=True, blank=True)
+    nActive = models.BooleanField(default=True)
+    nInvoice = models.BooleanField(default=False)
+    nAcceptedDate = models.DateTimeField(auto_now_add=True)
+    nReadyDate = models.DateTimeField(null=True, blank=True)
+    nReleasedDate = models.DateTimeField(null=True, blank=True)
+    nAcceptedBy = models.CharField(max_length=50, null=True, blank=True)
+    nReadyBy = models.CharField(max_length=50, null=True, blank=True)
+    nReleasedBy = models.CharField(max_length=50, null=True, blank=True)
 
     def __str__(self):
         return self.nTKTCODE
 
     class Meta:
-        db_table = "tb_tickets"  # Set table name
+        db_table = "tb_tickets"
 
 
 class Job(models.Model):
-    nId = models.AutoField(primary_key=True)  # Primary Key
+    nId = models.AutoField(primary_key=True)
     ticket = models.ForeignKey(
-        Ticket, on_delete=models.CASCADE, related_name="jobs"
-    )  # Foreign Key to Ticket (one-to-many relationship)
-    nJOBCODE = models.CharField(max_length=50, unique=True)  # Job Code
-    nJStatID = models.IntegerField()  # Job Status ID
-    nIQty = models.IntegerField(default=1)  # Item Quantity
-    nPrice = models.DecimalField(max_digits=10, decimal_places=2)  # Price
-    nFSID = models.UUIDField(default=None, null=True, blank=True)  # FSID (GUID)
-    nImage = models.TextField(null=True, blank=True)  # Image data
-    nItem = models.CharField(max_length=255, null=True, blank=True)  # Item Description
-    nMetal = models.CharField(
-        max_length=255, null=True, blank=True
-    )  # Metal Description
-    nJobDesc = models.TextField(null=True, blank=True)  # Job Description
-    nJobDescHTML = models.TextField(null=True, blank=True)  # Job Description (HTML)
-    nActive = models.BooleanField(default=True)  # Active Status
+        Ticket,
+        to_field="nTKTCODE",
+        db_column="nTKTCODE",
+        on_delete=models.CASCADE,
+        related_name="jobs",
+    )
+    nJOBCODE = models.CharField(max_length=50, unique=True)
+    nJStatID = models.IntegerField()
+    nIQty = models.IntegerField(default=1)
+    nPrice = models.DecimalField(max_digits=10, decimal_places=2)
+    nFSID = models.UUIDField(default=None, null=True, blank=True)
+    nImage = models.TextField(null=True, blank=True)
+    nItem = models.CharField(max_length=255, null=True, blank=True)
+    nMetal = models.CharField(max_length=255, null=True, blank=True)
+    nJobDesc = models.TextField(null=True, blank=True)
+    nJobDescHTML = models.TextField(null=True, blank=True)
+    nActive = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nJOBCODE
 
     class Meta:
-        db_table = "tb_jobs"  # Set table name
+        db_table = "tb_jobs"
 
 
 class JobImage(models.Model):
