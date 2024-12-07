@@ -403,8 +403,34 @@ class CustomerViewSet(BaseModelViewSet):
 
 
 class TicketViewSet(BaseModelViewSet):
+    """
+    API endpoint for managing tickets.
+    """
+
     queryset = Ticket.objects.all()
     serializer_class = TicketSerializer
+
+    @action(detail=False, methods=["get"], url_path="customer-tickets")
+    def get_customer_tickets(self, request):
+        """
+        Retrieve all tickets for a specific customer based on customer_id.
+        """
+        customer_id = request.query_params.get("customer_id")
+        if not customer_id:
+            return Response(
+                {"error": "customer_id query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tickets = self.queryset.filter(customer__nId=customer_id)
+        if not tickets.exists():
+            return Response(
+                {"message": f"No tickets found for customer_id '{customer_id}'."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serialized_tickets = self.get_serializer(tickets, many=True)
+        return Response(serialized_tickets.data, status=status.HTTP_200_OK)
 
 
 class JobViewSet(BaseModelViewSet):
