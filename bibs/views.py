@@ -43,13 +43,16 @@ class BaseModelViewSet(viewsets.ModelViewSet):
     """
 
     def generate_unique_id(self, prefix, model, field_name):
+        """
+        Generate a unique ID with a specific prefix for the given model and field.
+        """
         max_id = model.objects.aggregate(models.Max(field_name))[f"{field_name}__max"]
+        print(">> max_id", max_id)
         if max_id:
-
-            # Normalize case for comparison
+            # Normalize case for comparison and ensure the format matches the prefix
             if not max_id.upper().startswith(prefix.upper()):
                 raise ValueError(f"Invalid max_id format: {max_id}")
-            # Safely extract numeric part by removing the prefix and handling leading zeros
+            # Extract the numeric part safely
             try:
                 numeric_part = int(max_id[len(prefix) :])
             except ValueError:
@@ -57,33 +60,41 @@ class BaseModelViewSet(viewsets.ModelViewSet):
             next_id = numeric_part + 1
         else:
             next_id = 1
+        # Return the new unique ID with zero-padded numbers
         return f"{prefix.upper()}{next_id:05d}"
 
     def create(self, request, *args, **kwargs):
+        """
+        Override the create method to handle unique ID generation for new records.
+        """
         unique_field_name = self.serializer_class.Meta.unique_field
         unique_field_value = request.data.get(unique_field_name)
+        print(">>un", unique_field_name)
 
         if not unique_field_value:
-            # Determine the prefix based on the model
-            prefix = ""
-            if unique_field_name == "it_id":
-                prefix = "itm"
-            if unique_field_name == "met_id":
-                prefix = "met"
-            if unique_field_name == "mepr_id":
-                prefix = "mpr"
-            if unique_field_name == "pr_id":
-                prefix = "prc"
-            if unique_field_name == "nEMPCODE":
-                prefix = "emp"
-            if unique_field_name == "nCUSCODE":
-                prefix = "cus"
-            # Add other cases if needed
+            # Define prefixes for different unique fields
+            prefix_map = {
+                "it_id": "itm",
+                "met_id": "met",
+                "mepr_id": "mpr",
+                "pr_id": "prc",
+                "nEMPCODE": "emp",
+                "nCUSCODE": "cus",
+                "nTKTCODE": "tkt",
+                "nJOBCODE": "job",
+            }
+            prefix = prefix_map.get(unique_field_name, "")
+            print(">>prefix", prefix)
+
+            if not prefix:
+                raise ValueError(f"No prefix defined for field: {unique_field_name}")
 
             # Generate the unique ID
             unique_field_value = self.generate_unique_id(
                 prefix, self.queryset.model, unique_field_name
             )
+            print(">>unique_field_value", unique_field_value)
+
             request.data[unique_field_name] = unique_field_value
 
         # Check if the record already exists
