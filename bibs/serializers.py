@@ -122,7 +122,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
         extra_kwargs = {
             "nCUSCODE": {"required": True},
-            "nCTId": {"required": True},
+            "nCTId": {"required": False},
             "nActive": {"required": True},
             "nComName": {"required": True},
             "nSurName": {"required": True},
@@ -131,7 +131,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "nAddress2": {"required": False},
             "nAddress3": {"required": False},
             "nCity": {"required": True},
-            "nState": {"required": True},
+            "nState": {"required": False},
             "nPostCode": {"required": True},
             "nPhone1": {"required": True},
             "nPhone2": {"required": True},
