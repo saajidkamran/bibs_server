@@ -265,7 +265,7 @@ class Ticket(models.Model):
     nComments = models.TextField(null=True, blank=True)  # Comments
     nActive = models.BooleanField(default=True)  # Active Status
     nInvoice = models.BooleanField(default=False)  # Invoice Status
-    nAcceptedDate = models.DateTimeField(null=True, blank=True)  # Accepted Date
+    nAcceptedDate = models.DateTimeField(auto_now_add=True)  # Accepted Date
     nReadyDate = models.DateTimeField(null=True, blank=True)  # Ready Date
     nReleasedDate = models.DateTimeField(null=True, blank=True)  # Released Date
     nAcceptedBy = models.CharField(max_length=50, null=True, blank=True)  # Accepted By
