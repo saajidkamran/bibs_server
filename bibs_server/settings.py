@@ -97,7 +97,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.mysql",  # Use the MySQL backend
         "NAME": "bibs_server_db",  # Your MySQL database name
         "USER": "root",  # Your MySQL username
-        "PASSWORD": "",  # Your MySQL password
+        "PASSWORD": "root",  # Your MySQL password
         "HOST": "localhost",  # MySQL is hosted locally
         "PORT": "3306",  # MySQL default port
     }
