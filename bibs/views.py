@@ -16,6 +16,7 @@ from .models import (
     Employee,
     Customer,
     Ticket,
+    SerialTable,
 )
 from .serializers import (
     JobImageSerializer,
@@ -42,38 +43,34 @@ class BaseModelViewSet(viewsets.ModelViewSet):
     - Optional 'created_by' during updates.
     """
 
-    def generate_unique_id(self, prefix, model, field_name):
+    def generate_unique_id(self, sr_code):
         """
-        Generate a unique ID with a specific prefix for the given model and field.
+        Generate a unique ID using the count from the SerialTable for the given sr_code.
         """
-        max_id = model.objects.aggregate(models.Max(field_name))[f"{field_name}__max"]
-        print(">> max_id", max_id)
-        if max_id:
-            # Normalize case for comparison and ensure the format matches the prefix
-            if not max_id.upper().startswith(prefix.upper()):
-                raise ValueError(f"Invalid max_id format: {max_id}")
-            # Extract the numeric part safely
-            try:
-                numeric_part = int(max_id[len(prefix) :])
-            except ValueError:
-                raise ValueError(f"Numeric extraction failed for max_id: {max_id}")
-            next_id = numeric_part + 1
-        else:
+        try:
+            serial_entry = SerialTable.objects.get(sr_code=sr_code)
+            current_count = serial_entry.count
+            next_id = current_count + 1
+            serial_entry.count = next_id  # Increment count in SerialTable
+            serial_entry.save()
+        except SerialTable.DoesNotExist:
+            # If the entry does not exist, create it with count 1
             next_id = 1
-        # Return the new unique ID with zero-padded numbers
-        return f"{prefix.upper()}{next_id:05d}"
+            SerialTable.objects.create(
+                sr_code=sr_code, count=next_id, description=f"{sr_code} Serial Count"
+            )
+
+        # Generate the ID with zero-padded numbers
+        return f"{sr_code.upper()}{next_id:05d}"
 
     def create(self, request, *args, **kwargs):
         """
         Override the create method to handle unique ID generation for new records.
         """
         unique_field_name = self.serializer_class.Meta.unique_field
-        unique_field_value = request.data.get(unique_field_name)
-        print(">>un", unique_field_name)
-
-        if not unique_field_value:
-            # Define prefixes for different unique fields
-            prefix_map = {
+        if not request.data.get(unique_field_name):
+            # Define prefixes for different sr_codes
+            sr_code_map = {
                 "it_id": "itm",
                 "met_id": "met",
                 "mepr_id": "mpr",
@@ -83,18 +80,14 @@ class BaseModelViewSet(viewsets.ModelViewSet):
                 "nTKTCODE": "tkt",
                 "nJOBCODE": "job",
             }
-            prefix = prefix_map.get(unique_field_name, "")
-            print(">>prefix", prefix)
-
-            if not prefix:
-                raise ValueError(f"No prefix defined for field: {unique_field_name}")
+            sr_code = sr_code_map.get(unique_field_name)
+            if not sr_code:
+                raise ValueError(
+                    f"No serial code defined for field: {unique_field_name}"
+                )
 
             # Generate the unique ID
-            unique_field_value = self.generate_unique_id(
-                prefix, self.queryset.model, unique_field_name
-            )
-            print(">>unique_field_value", unique_field_value)
-
+            unique_field_value = self.generate_unique_id(sr_code)
             request.data[unique_field_name] = unique_field_value
 
         # Check if the record already exists
