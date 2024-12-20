@@ -7,44 +7,64 @@ from .models import (
     Employee,
     Customer,
     SerialTable,
+    Job,
+    Ticket,
+    MProcess,
 )
 
 
-def update_serial_table_entry(sr_code, model):
-    count = model.objects.count()
-    SerialTable.objects.update_or_create(
-        sr_code=sr_code,
-        defaults={
-            "count": count,
-        },
-    )
+def increment_serial_table_entry(sr_code):
+    try:
+        entry = SerialTable.objects.get(sr_code=sr_code)
+        # entry.count += 1
+        entry.save()
+    except SerialTable.DoesNotExist:
+        SerialTable.objects.create(sr_code=sr_code, count=1)
+
+
+@receiver(post_save, sender=Ticket)
+def increment_item_count(sender, instance, created, **kwargs):
+    if created:  # Only increment when a new job is created
+        increment_serial_table_entry("tkt")
+
+
+@receiver(post_save, sender=Job)
+def increment_item_count(sender, instance, created, **kwargs):
+    if created:  # Only increment when a new job is created
+        increment_serial_table_entry("job")
 
 
 @receiver(post_save, sender=MItem)
-@receiver(post_delete, sender=MItem)
-def update_item_count(sender, instance, **kwargs):
-    update_serial_table_entry("itm", MItem)
+def increment_item_count(sender, instance, created, **kwargs):
+    if created:  # Only increment when a new item is created
+        increment_serial_table_entry("itm")
 
 
 @receiver(post_save, sender=MMetal)
-@receiver(post_delete, sender=MMetal)
-def update_metal_count(sender, instance, **kwargs):
-    update_serial_table_entry("met", MMetal)
+def increment_metal_count(sender, instance, created, **kwargs):
+    if created:
+        increment_serial_table_entry("met")
 
 
 @receiver(post_save, sender=MMetalProcess)
-@receiver(post_delete, sender=MMetalProcess)
-def update_metal_process_count(sender, instance, **kwargs):
-    update_serial_table_entry("mepr", MMetalProcess)
+def increment_metal_process_count(sender, instance, created, **kwargs):
+    if created:
+        increment_serial_table_entry("mepr")
 
 
 @receiver(post_save, sender=Employee)
-@receiver(post_delete, sender=Employee)
-def update_employee_count(sender, instance, **kwargs):
-    update_serial_table_entry("emp", Employee)
+def increment_employee_count(sender, instance, created, **kwargs):
+    if created:
+        increment_serial_table_entry("emp")
 
 
 @receiver(post_save, sender=Customer)
-@receiver(post_delete, sender=Customer)
-def update_customer_count(sender, instance, **kwargs):
-    update_serial_table_entry("cus", Customer)
+def increment_customer_count(sender, instance, created, **kwargs):
+    if created:
+        increment_serial_table_entry("cus")
+
+
+@receiver(post_save, sender=MProcess)
+def increment_customer_count(sender, instance, created, **kwargs):
+    if created:
+        increment_serial_table_entry("prc")

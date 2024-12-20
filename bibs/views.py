@@ -1,6 +1,5 @@
 from django.forms import ValidationError
 from rest_framework import viewsets, status
-from django.db import models  # Import models for aggregate functions
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import (
@@ -16,6 +15,7 @@ from .models import (
     Employee,
     Customer,
     Ticket,
+    SerialTable,
 )
 from .serializers import (
     JobImageSerializer,
@@ -42,26 +42,25 @@ class BaseModelViewSet(viewsets.ModelViewSet):
     - Optional 'created_by' during updates.
     """
 
-    def generate_unique_id(self, prefix, model, field_name):
+    def generate_unique_id(self, sr_code):
         """
-        Generate a unique ID with a specific prefix for the given model and field.
+        Generate a unique ID using the count from the SerialTable for the given sr_code.
         """
-        max_id = model.objects.aggregate(models.Max(field_name))[f"{field_name}__max"]
-        print(">> max_id", max_id)
-        if max_id:
-            # Normalize case for comparison and ensure the format matches the prefix
-            if not max_id.upper().startswith(prefix.upper()):
-                raise ValueError(f"Invalid max_id format: {max_id}")
-            # Extract the numeric part safely
-            try:
-                numeric_part = int(max_id[len(prefix) :])
-            except ValueError:
-                raise ValueError(f"Numeric extraction failed for max_id: {max_id}")
-            next_id = numeric_part + 1
-        else:
+        try:
+            serial_entry = SerialTable.objects.get(sr_code=sr_code)
+            current_count = serial_entry.count
+            next_id = current_count + 1
+            serial_entry.count = next_id  # Increment count in SerialTable
+            serial_entry.save()
+        except SerialTable.DoesNotExist:
+            # If the entry does not exist, create it with count 1
             next_id = 1
-        # Return the new unique ID with zero-padded numbers
-        return f"{prefix.upper()}{next_id:05d}"
+            SerialTable.objects.create(
+                sr_code=sr_code, count=next_id, description=f"{sr_code} Serial Count"
+            )
+
+        # Generate the ID with zero-padded numbers
+        return f"{sr_code.upper()}{next_id:05d}"
 
     def create(self, request, *args, **kwargs):
         """
@@ -69,11 +68,9 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         """
         unique_field_name = self.serializer_class.Meta.unique_field
         unique_field_value = request.data.get(unique_field_name)
-        print(">>un", unique_field_name)
-
-        if not unique_field_value:
-            # Define prefixes for different unique fields
-            prefix_map = {
+        if not request.data.get(unique_field_name):
+            # Define prefixes for different sr_codes
+            sr_code_map = {
                 "it_id": "itm",
                 "met_id": "met",
                 "mepr_id": "mpr",
@@ -83,18 +80,14 @@ class BaseModelViewSet(viewsets.ModelViewSet):
                 "nTKTCODE": "tkt",
                 "nJOBCODE": "job",
             }
-            prefix = prefix_map.get(unique_field_name, "")
-            print(">>prefix", prefix)
-
-            if not prefix:
-                raise ValueError(f"No prefix defined for field: {unique_field_name}")
+            sr_code = sr_code_map.get(unique_field_name)
+            if not sr_code:
+                raise ValueError(
+                    f"No serial code defined for field: {unique_field_name}"
+                )
 
             # Generate the unique ID
-            unique_field_value = self.generate_unique_id(
-                prefix, self.queryset.model, unique_field_name
-            )
-            print(">>unique_field_value", unique_field_value)
-
+            unique_field_value = self.generate_unique_id(sr_code)
             request.data[unique_field_name] = unique_field_value
 
         # Check if the record already exists
@@ -205,6 +198,47 @@ class MTrsItemsMetalsViewSet(BaseRestrictedViewSet):
     queryset = MTrsItemsMetals.objects.all()
     serializer_class = MTrsItemsMetalsSerializer
 
+    @action(detail=True, methods=["get"], url_path="metals")
+    def retrieve_metals(self, request, pk=None):
+        """
+        Custom endpoint to retrieve all metal IDs (`metal_id`), sequence numbers (`seq_no`),
+        and metal names (`metalName`) for a given item ID (`item_id`).
+        """
+        try:
+            item_id = pk  # The item ID passed in the URL
+
+            # Query related metals from M_trs_items_metals
+            related_metals = self.queryset.filter(item_id=item_id).values(
+                "metal_id",
+                "seq_no",
+            )
+            # Add the metal name from M_metals for each related metal
+            response_data = []
+            for metal in related_metals:
+                metal_id = metal["metal_id"]
+                metal_name = (
+                    MMetal.objects.filter(met_id=metal_id)
+                    .values_list("desc", flat=True)
+                    .first()
+                )
+                response_data.append(
+                    {
+                        "met_id": metal_id,
+                        "seq_no": metal["seq_no"],
+                        "metalName": metal_name,  # Include the metal name
+                    }
+                )
+
+            return Response(
+                {"met_ids": response_data},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
     def create(self, request, *args, **kwargs):
         """
         Override the create method to handle updating `seq_no` when provided.
@@ -242,24 +276,6 @@ class MTrsItemsMetalsViewSet(BaseRestrictedViewSet):
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-    @action(detail=True, methods=["get"], url_path="metals")
-    def retrieve_metals(self, request, pk=None):
-        """
-        Custom endpoint to retrieve all metal IDs (`metal_id`) for a given item ID (`item_id`).
-        """
-        try:
-            item_id = pk  # The item ID passed in the URL
-            # Filter using the correct field name: item_id
-            related_metals = self.queryset.filter(item_id=item_id).values(
-                "metal_id",
-                "seq_no",
-            )
-            return Response(
-                {"met_ids": list(related_metals)}, status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["delete"], url_path="delete-metal")
     def delete_metal(self, request):
@@ -343,20 +359,30 @@ class MTrsProcessViewSet(BaseRestrictedViewSet):
             )
 
     @action(detail=True, methods=["get"], url_path="processes")
-    def retrieve_processes(self, request, pk=None):
+    def retrieve_related_processes(self, request, pk=None):
         """
-        Custom endpoint to retrieve all process IDs (`pr_id`) for a given metal ID (`process_id`).
+        Retrieve all process IDs and names (`pr_id`, `desc`) related to a given metal-process ID (`mepr_id`).
         """
         try:
-            metal_id = pk  # The metal ID passed in the URL
-            # Query related processes through metal_process and metal
-            related_processes = self.queryset.filter(
-                metal_process__mepr_id=metal_id
-            ).values("process_id", "seq_no")
+            # Use the primary key (pk) to identify the metal-process ID
+            metal_process_id = pk
 
-            return Response(
-                {"pr_ids": list(related_processes)}, status=status.HTTP_200_OK
-            )
+            # Query related processes
+            related_processes = self.queryset.filter(
+                metal_process_id=metal_process_id
+            ).values("process__pr_id", "process__desc", "seq_no")
+
+            # Format the response
+            response_data = [
+                {
+                    "pr_id": process["process__pr_id"],
+                    "seq_no": process["seq_no"],
+                    "processName": process["process__desc"],
+                }
+                for process in related_processes
+            ]
+
+            return Response({"process_ids": response_data}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -444,23 +470,37 @@ class MTrsMetalMetalProcessViewSet(BaseRestrictedViewSet):
             )
 
     @action(detail=True, methods=["get"], url_path="metal-processes")
-    def retrieve_metal_processes(self, request, pk=None):
+    def retrieve_metalprocess_processes(self, request, pk=None):
         """
-        Custom endpoint to retrieve all metal-process IDs (`mepr_id`) for a given metal ID (`metal_id`).
+        Retrieve all process IDs (`process_id`) and their names for a given metal-process ID (`metal_process_id`).
         """
         try:
-            # Use the primary key (pk) to identify the metal ID
-            metal_id = pk  # The metal ID passed in the URL
+            metal_id = pk  # The metal-process ID passed in the URL
 
-            # Query the database for related metal processes
-            related_metal_processes = self.queryset.filter(
-                metal__met_id=metal_id  # Ensure correct field lookup
-            ).values("metal_process_id", "seq_no")
-
-            # Return the response with the list of related metal process IDs
-            return Response(
-                {"mepr_ids": list(related_metal_processes)}, status=status.HTTP_200_OK
+            # Query related processes through MTrsProcess
+            # Query the related metal processes using the correct field names
+            related_metal_processes = self.queryset.filter(metal_id=metal_id).values(
+                "metal_process_id", "seq_no"
             )
+
+            # Fetch process names from MProcess table
+            response_data = []
+            for mProcess in related_metal_processes:
+                metal_process_id = mProcess["metal_process_id"]
+                mProcess_name = (
+                    MMetalProcess.objects.filter(mepr_id=metal_process_id)
+                    .values_list("desc", flat=True)
+                    .first()
+                )
+                response_data.append(
+                    {
+                        "mepr_id": metal_process_id,
+                        "seq_no": mProcess["seq_no"],
+                        "metalProcessName": mProcess_name,
+                    }
+                )
+
+            return Response({"processes": response_data}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -560,52 +600,3 @@ class JobViewSet(BaseModelViewSet):
 class JobImageViewSet(BaseModelViewSet):
     queryset = JobImage.objects.all()
     serializer_class = JobImageSerializer
-
-
-class ItemMetalProcessViewSet(viewsets.ViewSet):
-    """
-    ViewSet to retrieve related names based on provided IDs.
-    """
-
-    @action(detail=False, methods=["post"], url_path="retrieve-names")
-    def retrieve_names(self, request):
-        try:
-            data = request.data
-            items = data.get("items", [])
-            metals = data.get("metals", [])
-            metal_processes = data.get("metal_processes", [])
-            processes = data.get("processes", [])
-
-            # Retrieve related names
-            items_data = MItem.objects.filter(it_id__in=items).values("it_id", "desc")
-            metals_data = MMetal.objects.filter(met_id__in=metals).values(
-                "met_id", "desc"
-            )
-            metal_processes_data = MMetalProcess.objects.filter(
-                mepr_id__in=metal_processes
-            ).values("mepr_id", "desc")
-            processes_data = MProcess.objects.filter(pr_id__in=processes).values(
-                "pr_id", "desc"
-            )
-
-            # Reorder metals_data based on the input order
-            if metals:
-                # Create a mapping of input metals order
-                metal_order = {metal: index for index, metal in enumerate(metals)}
-                metals_data = sorted(
-                    metals_data,
-                    key=lambda x: metal_order.get(x["met_id"], float("inf")),
-                )
-
-            return Response(
-                {
-                    "items": list(items_data),
-                    "metals": list(metals_data),
-                    "metal_processes": list(metal_processes_data),
-                    "processes": list(processes_data),
-                },
-                status=status.HTTP_200_OK,
-            )
-
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

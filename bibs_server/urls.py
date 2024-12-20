@@ -31,7 +31,6 @@ from bibs.views import (
     EmployeeCreateView,
     CustomerViewSet,
     TicketViewSet,
-    ItemMetalProcessViewSet,
 )
 
 router = DefaultRouter()
@@ -51,9 +50,7 @@ router.register(r"trs-items-metals", MTrsItemsMetalsViewSet)
 router.register(r"trs-metals-metalprocess", MTrsMetalMetalProcessViewSet)
 router.register(r"trs-metalprocess-process", MTrsProcessViewSet)
 
-router.register(
-    r"item-metal-process", ItemMetalProcessViewSet, basename="item-metal-process"
-)
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
