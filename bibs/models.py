@@ -321,3 +321,74 @@ class JobImage(models.Model):
 
     class Meta:
         db_table = "tb_jobs_images"  # Set table name
+
+
+class UserGroup(models.Model):
+    user_group_id = models.AutoField(primary_key=True)  # Auto-incrementing primary key
+    group_name = models.CharField(max_length=50, unique=True)  # Unique group name
+
+    def __str__(self):
+        return self.group_name
+
+    class Meta:
+        db_table = "user_groups"  # Specify table name
+
+
+class MenuAccessVisibility(models.Model):
+    menu_id = models.AutoField(primary_key=True)  # Primary key for this table
+    menu_name = models.CharField(max_length=50)  # Name of the menu
+    user_group = models.ForeignKey(
+        "UserGroup",
+        on_delete=models.CASCADE,
+        db_column="user_group_id",
+        related_name="menu_access",
+    )  # Foreign key linking to UserGroup
+    visible_no = models.CharField(
+        max_length=10, null=True, blank=True
+    )  # Visibility flag
+
+    def __str__(self):
+        return f"{self.menu_name} ({self.visible_no})"
+
+    class Meta:
+        db_table = "menu_access_visibility"  # Specify table name
+
+
+class Menu(models.Model):
+    menu_id = models.AutoField(primary_key=True)  # Primary Key for Menu table
+    menu_name = models.CharField(max_length=100, unique=True)  # Menu name
+
+    def __str__(self):
+        return self.menu_name
+
+    class Meta:
+        db_table = "menu"  # Specify table name
+
+
+class AccessRights(models.Model):
+    access_right_id = models.AutoField(
+        primary_key=True
+    )  # Primary key for the AccessRights table
+    user_group = models.ForeignKey(
+        "UserGroup",
+        on_delete=models.CASCADE,
+        db_column="user_group_id",
+        related_name="access_rights",
+    )  # Foreign key referencing UserGroup
+    menu = models.ForeignKey(
+        "Menu",
+        on_delete=models.CASCADE,
+        db_column="menu_id",
+        related_name="access_rights",
+    )  # Foreign key referencing Menu
+    add = models.BooleanField(default=False)  # Permission to add
+    edit = models.BooleanField(default=False)  # Permission to edit
+    delete = models.BooleanField(default=False)  # Permission to delete
+    update = models.BooleanField(default=False)  # Permission to update
+
+    def __str__(self):
+        return f"UserGroup: {self.user_group.group_name}, Menu: {self.menu.menu_name}"
+
+    class Meta:
+        db_table = "access_rights"  # Specify table name
+        unique_together = ("user_group", "menu")  # Ensure unique combinat
