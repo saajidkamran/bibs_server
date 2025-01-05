@@ -26,7 +26,8 @@ class SetupCompany(models.Model):
 
 
 class MItem(models.Model):
-    it_id = models.CharField(max_length=10, primary_key=True)
+    nId = models.AutoField(primary_key=True)  # New primary key
+    it_id = models.CharField(max_length=10)
     desc = models.CharField(max_length=50)
     seq_no = models.CharField(max_length=10)
     created_date = models.DateTimeField(auto_now_add=True)
@@ -38,11 +39,12 @@ class MItem(models.Model):
         return self.desc
 
     class Meta:
-        db_table = "M_items"
+        db_table = "nitem"
 
 
 class MMetal(models.Model):
-    met_id = models.CharField(max_length=10, primary_key=True)
+    nId = models.AutoField(primary_key=True)  # New primary key
+    met_id = models.CharField(max_length=10)
     desc = models.CharField(max_length=50)
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
@@ -53,11 +55,12 @@ class MMetal(models.Model):
         return self.desc
 
     class Meta:
-        db_table = "M_metals"
+        db_table = "nmetal"
 
 
 class MMetalProcess(models.Model):
-    mepr_id = models.CharField(max_length=10, primary_key=True)
+    nId = models.AutoField(primary_key=True)  # New primary key
+    mepr_id = models.CharField(max_length=10)
     desc = models.CharField(max_length=50)
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
@@ -68,11 +71,12 @@ class MMetalProcess(models.Model):
         return self.desc
 
     class Meta:
-        db_table = "M_metalprocess"
+        db_table = "nmetalprocess"
 
 
 class MProcess(models.Model):
-    pr_id = models.CharField(max_length=10, primary_key=True)
+    nId = models.AutoField(primary_key=True)  # New primary key
+    pr_id = models.CharField(max_length=10)
     desc = models.CharField(max_length=50)
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
@@ -83,7 +87,7 @@ class MProcess(models.Model):
         return self.desc
 
     class Meta:
-        db_table = "M_process"
+        db_table = "nprocess"
 
 
 class SerialTable(models.Model):
@@ -100,19 +104,16 @@ class SerialTable(models.Model):
 
 class MTrsItemsMetals(models.Model):
     item = models.ForeignKey(
-        MItem, on_delete=models.CASCADE, db_column="it_id"
-    )  # Foreign key to MItem
+        MItem, on_delete=models.CASCADE, db_column="nId"  # Change db_column
+    )
     metal = models.ForeignKey(
-        MMetal, on_delete=models.CASCADE, db_column="met_id"
-    )  # Foreign key to MMetal
-    seq_no = models.IntegerField(default=0)  # Sequence Number
+        MMetal, on_delete=models.CASCADE, db_column="metal_nId"  # Change db_column
+    )
+    seq_no = models.IntegerField(default=0)
 
     class Meta:
-        db_table = "M_trs_items_metals"  # Renamed table
-        unique_together = (
-            "item",
-            "metal",
-        )  # Ensure unique combinations of item and metal
+        db_table = "M_trs_items_metals"
+        unique_together = ("item", "metal")
 
     def __str__(self):
         return f"{self.item.it_id} - {self.metal.met_id}"
@@ -120,19 +121,16 @@ class MTrsItemsMetals(models.Model):
 
 class MTrsMetalMetalProcess(models.Model):
     metal = models.ForeignKey(
-        MMetal, on_delete=models.CASCADE, db_column="met_id"
-    )  # Foreign key to MItem
+        MMetal, on_delete=models.CASCADE, db_column="metal_nId"  # Change db_column
+    )
     metal_process = models.ForeignKey(
-        MMetalProcess, on_delete=models.CASCADE, db_column="mepr_id"
-    )  # Foreign key to MMetalProcess
-    seq_no = models.IntegerField(default=0)  # Sequence Number
+        MMetalProcess, on_delete=models.CASCADE, db_column="metal_process_nId"
+    )
+    seq_no = models.IntegerField(default=0)
 
     class Meta:
-        db_table = "M_trs_metals_metalprocess"  # Renamed table
-        unique_together = (
-            "metal_process",
-            "metal",
-        )  # Ensure unique combinations of item and metal
+        db_table = "M_trs_metals_metalprocess"
+        unique_together = ("metal_process", "metal")
 
     def __str__(self):
         return f"{self.metal_process.mepr_id} - {self.metal.met_id}"
@@ -140,19 +138,16 @@ class MTrsMetalMetalProcess(models.Model):
 
 class MTrsProcess(models.Model):
     process = models.ForeignKey(
-        MProcess, on_delete=models.CASCADE, db_column="pr_id"
-    )  # Foreign key to MItem
+        MProcess, on_delete=models.CASCADE, db_column="process_nId"
+    )
     metal_process = models.ForeignKey(
-        MMetalProcess, on_delete=models.CASCADE, db_column="mepr_id"
-    )  # Foreign key to MMetalProcess
-    seq_no = models.IntegerField(default=0)  # Sequence Number
+        MMetalProcess, on_delete=models.CASCADE, db_column="metal_process_nId"
+    )
+    seq_no = models.IntegerField(default=0)
 
     class Meta:
-        db_table = "M_trs_process"  # Renamed table
-        unique_together = (
-            "metal_process",
-            "process",
-        )  # Ensure unique combinations of metal_process and process
+        db_table = "M_trs_process"
+        unique_together = ("metal_process", "process")
 
     def __str__(self):
         return f"{self.process.pr_id} - {self.metal_process.mepr_id}"
@@ -203,7 +198,8 @@ class Employee(models.Model):
 
 
 class Customer(models.Model):
-    nCUSCODE = models.CharField(max_length=50, primary_key=True)  # Primary Key
+    nId = models.AutoField(primary_key=True)  # Primary Key
+    nCUSCODE = models.CharField(max_length=50)
     nCTId = models.IntegerField(null=True, blank=True)
     nActive = models.BooleanField(default=False)
     nComName = models.CharField(max_length=255, null=True, blank=True)
@@ -237,14 +233,14 @@ class Customer(models.Model):
 
 
 class Ticket(models.Model):
-    nTKTCODE = models.CharField(max_length=20, primary_key=True, unique=True)
+    nId = models.AutoField(primary_key=True)  # Primary Key
+    nTKTCODE = models.CharField(max_length=20, unique=True)
     nStatID = models.IntegerField()  # Status ID
 
     customer = models.ForeignKey(
         Customer,
-        to_field="nCUSCODE",
-        db_column="nCUSCODE",
         on_delete=models.CASCADE,
+        db_column="customer_nId",  # Change db_column
         related_name="tickets",
     )
     nDocNo = models.CharField(max_length=50, null=True, blank=True)
@@ -282,9 +278,8 @@ class Job(models.Model):
     nId = models.AutoField(primary_key=True)
     ticket = models.ForeignKey(
         Ticket,
-        to_field="nTKTCODE",
-        db_column="nTKTCODE",
         on_delete=models.CASCADE,
+        db_column="ticket_nId",  # Change db_column
         related_name="jobs",
     )
     nJOBCODE = models.CharField(max_length=50, unique=True)
