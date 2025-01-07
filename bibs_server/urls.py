@@ -31,6 +31,7 @@ from bibs.views import (
     EmployeeCreateView,
     CustomerViewSet,
     TicketViewSet,
+    NProcessPipeTypeViewSet,
 )
 
 router = DefaultRouter()
@@ -50,6 +51,7 @@ router.register(r"trs-items-metals", MTrsItemsMetalsViewSet)
 router.register(r"trs-metals-metalprocess", MTrsMetalMetalProcessViewSet)
 router.register(r"trs-metalprocess-process", MTrsProcessViewSet)
 
+router.register(r"prototypes-list", NProcessPipeTypeViewSet)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

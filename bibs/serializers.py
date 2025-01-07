@@ -13,6 +13,7 @@ from .models import (
     Ticket,
     Job,
 )
+from .models import NProcessPipeType
 
 
 class BaseSerializer(serializers.ModelSerializer):
@@ -166,3 +167,9 @@ class JobImageSerializer(serializers.ModelSerializer):
         model = JobImage
         fields = "__all__"
         unique_field = "img_id"
+
+
+class NProcessPipeTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NProcessPipeType
+        fields = ["nPTId", "nProType"]
