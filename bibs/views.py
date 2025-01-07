@@ -19,6 +19,9 @@ from .models import (
     Ticket,
     SerialTable,
     NProcessPipeType,
+    NProcessType,
+    NItemResizeType,
+    MTrsProcessType,
 )
 from .serializers import (
     JobImageSerializer,
@@ -34,6 +37,9 @@ from .serializers import (
     CustomerSerializer,
     TicketSerializer,
     NProcessPipeTypeSerializer,
+    NProcessTypeSerializer,
+    NItemResizeTypeSerializer,
+    MTrsProcessTypeSerializer,
 )
 
 
@@ -76,9 +82,11 @@ class BaseModelViewSet(viewsets.ModelViewSet):
             # Define prefixes for different sr_codes
             sr_code_map = {
                 "it_id": "itm",
+                "pt_id": "pt",
                 "met_id": "met",
                 "mepr_id": "mpr",
                 "pr_id": "prc",
+                "itmrz_id": "itmrz",
                 "nEMPCODE": "emp",
                 "nCUSCODE": "cus",
                 "nTKTCODE": "tkt",
@@ -106,12 +114,12 @@ class BaseModelViewSet(viewsets.ModelViewSet):
                     {"updated_by": "This field is required for updates."}
                 )
 
-            if request.data.get("nEMPCODE"):
-                request.data["nUpdatedBy"] = request.data.pop("user")
-            elif request.data.get("nCUSCODE"):
-                request.data["nUpdatedBy"] = request.data.pop("user")
-            else:
-                request.data["updated_by"] = request.data.pop("user")
+            # if request.data.get("nEMPCODE"):
+            #     request.data["nUpdatedBy"] = request.data.pop("user")
+            # elif request.data.get("nCUSCODE"):
+            #     request.data["nUpdatedBy"] = request.data.pop("user")
+            # else:
+            request.data["updated_by"] = request.data.pop("user")
 
             serializer = self.get_serializer(instance, data=request.data, partial=False)
             serializer.is_valid(raise_exception=True)
@@ -122,12 +130,12 @@ class BaseModelViewSet(viewsets.ModelViewSet):
             if "user" not in request.data or not request.data["user"]:
                 raise ValidationError({"user": "This field is required for creation."})
 
-            if request.data.get("nEMPCODE"):
-                request.data["nCreatedBy"] = request.data.pop("user")
-            elif request.data.get("nCUSCODE"):
-                request.data["nCreatedBy"] = request.data.pop("user")
-            else:
-                request.data["created_by"] = request.data.pop("user")
+            # if request.data.get("nEMPCODE"):
+            #     request.data["nCreatedBy"] = request.data.pop("user")
+            # elif request.data.get("nCUSCODE"):
+            #     request.data["nCreatedBy"] = request.data.pop("user")
+            # else:
+            request.data["created_by"] = request.data.pop("user")
 
             return super().create(request, *args, **kwargs)
 
@@ -136,11 +144,11 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         if "user" not in request.data or not request.data["user"]:
             raise ValidationError({"user": "This field is required for updates."})
 
-        if request.data["nEMPCODE"] | request.data["nEMPCODE"]:
+        # if request.data["nEMPCODE"] | request.data["nEMPCODE"]:
 
-            request.data["nUpdatedBy"] = request.data.pop("user")
-        else:
-            request.data["updated_by"] = request.data.pop("user")
+        #     request.data["nUpdatedBy"] = request.data.pop("user")
+        # else:
+        request.data["updated_by"] = request.data.pop("user")
 
         return super().update(request, *args, **kwargs)
 
@@ -183,6 +191,11 @@ class MItemViewSet(BaseModelViewSet):
     serializer_class = MItemSerializer
 
 
+class NProcessTypeViewSet(BaseModelViewSet):
+    queryset = NProcessType.objects.all()
+    serializer_class = NProcessTypeSerializer
+
+
 class MMetalViewSet(BaseModelViewSet):
     queryset = MMetal.objects.all()
     serializer_class = MMetalSerializer
@@ -196,6 +209,12 @@ class MMetalProcessViewSet(BaseModelViewSet):
 class MProcessViewSet(BaseModelViewSet):
     queryset = MProcess.objects.all()
     serializer_class = MProcessSerializer
+
+
+class NItemResizeTypeViewSet(BaseModelViewSet):
+
+    queryset = NItemResizeType.objects.all()
+    serializer_class = NItemResizeTypeSerializer
 
 
 class MTrsItemsMetalsViewSet(BaseRestrictedViewSet):
@@ -539,6 +558,125 @@ class MTrsMetalMetalProcessViewSet(BaseRestrictedViewSet):
             return Response(
                 {
                     "message": f"Metal process ID '{metal_process_id}' successfully deleted for Metal ID '{metal_id}'."
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MTrsProcessTypeViewSet(BaseRestrictedViewSet):
+    """
+    A ViewSet for managing MTrsProcessType records.
+    """
+
+    queryset = MTrsProcessType.objects.all()
+    serializer_class = MTrsProcessTypeSerializer
+
+    def create(self, request, *args, **kwargs):
+        """
+        Override the create method to handle updating `seq_no` when provided.
+        """
+        try:
+            process_type = request.data.get("process_type")
+            process = request.data.get("process")
+            seq_no = request.data.get("seq_no")
+
+            if not process_type or not process:
+                return Response(
+                    {"error": "Both `process_type` and `process` are required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Check if `seq_no` is provided
+            if seq_no is not None:
+                # Try to find the existing record for the given `process_type` and `process`
+                instance = self.queryset.filter(
+                    process_type=process_type, process=process
+                ).first()
+
+                if instance:
+                    # Update the `seq_no` for the specific record
+                    instance.seq_no = seq_no
+                    instance.save()
+                    return Response(
+                        {"message": "Sequence number updated successfully."},
+                        status=status.HTTP_200_OK,
+                    )
+
+            # If no `seq_no` or no matching record, proceed with usual creation
+            return super().create(request, *args, **kwargs)
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    @action(detail=True, methods=["get"], url_path="related-processes")
+    def retrieve_related_processes(self, request, pk=None):
+        """
+        Retrieve all process IDs (`pr_id`) and their names for a given process type ID (`pt_id`).
+        """
+        try:
+            process_id = pk  # The process type ID passed in the URL
+            related_processes_types = self.queryset.filter(
+                process_id=process_id
+            ).values("process_type_id", "seq_no")
+
+            response_data = []
+            for pType in related_processes_types:
+                process_ids = pType["process_type_id"]
+
+                mProcess_name = (
+                    NProcessType.objects.filter(pt_id=process_ids)
+                    .values_list("processName", flat=True)
+                    .first()
+                )
+                response_data.append(
+                    {
+                        "pt_id": process_ids,
+                        "seq_no": pType["seq_no"],
+                        "metalProcessName": mProcess_name,
+                    }
+                )
+
+            return Response({"processes": response_data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["delete"], url_path="delete-process-type")
+    def delete_process_type(self, request):
+        """
+        Custom endpoint to delete a specific process associated with a process type.
+        """
+        try:
+            process_type_id = request.query_params.get("process_type_id")
+            process_id = request.query_params.get("process_id")
+
+            if not process_type_id or not process_id:
+                return Response(
+                    {"error": "Both process_type_id and process_id must be provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Filter the specific record
+            obj = self.queryset.filter(
+                process_type__pt_id=process_type_id, process__pr_id=process_id
+            ).first()
+
+            if not obj:
+                return Response(
+                    {"error": "Record not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Delete the record
+            obj.delete()
+            return Response(
+                {
+                    "message": f"Process ID '{process_id}' successfully deleted for Process Type ID '{process_type_id}'."
                 },
                 status=status.HTTP_200_OK,
             )
