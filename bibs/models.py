@@ -38,7 +38,7 @@ class MItem(models.Model):
         return self.desc
 
     class Meta:
-        db_table = "M_items"
+        db_table = "nitems"
 
 
 class MMetal(models.Model):
@@ -53,7 +53,7 @@ class MMetal(models.Model):
         return self.desc
 
     class Meta:
-        db_table = "M_metals"
+        db_table = "nmetals"
 
 
 class MMetalProcess(models.Model):
@@ -68,7 +68,7 @@ class MMetalProcess(models.Model):
         return self.desc
 
     class Meta:
-        db_table = "M_metalprocess"
+        db_table = "nmetalprocess"
 
 
 class MProcess(models.Model):
@@ -83,7 +83,7 @@ class MProcess(models.Model):
         return self.desc
 
     class Meta:
-        db_table = "M_process"
+        db_table = "nprocess"
 
 
 class SerialTable(models.Model):
@@ -392,3 +392,11 @@ class AccessRights(models.Model):
     class Meta:
         db_table = "access_rights"  # Specify table name
         unique_together = ("user_group", "menu")  # Ensure unique combinat
+
+
+class NProcessPipeType(models.Model):
+    nPTId = models.AutoField(primary_key=True)
+    nProType = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.nProType

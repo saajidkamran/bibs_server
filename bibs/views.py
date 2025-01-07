@@ -1,7 +1,9 @@
 from django.forms import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework.decorators import action
+
 from .models import (
     Job,
     JobImage,
@@ -16,6 +18,7 @@ from .models import (
     Customer,
     Ticket,
     SerialTable,
+    NProcessPipeType,
 )
 from .serializers import (
     JobImageSerializer,
@@ -30,6 +33,7 @@ from .serializers import (
     EmployeeSerializer,
     CustomerSerializer,
     TicketSerializer,
+    NProcessPipeTypeSerializer,
 )
 
 
@@ -600,3 +604,12 @@ class JobViewSet(BaseModelViewSet):
 class JobImageViewSet(BaseModelViewSet):
     queryset = JobImage.objects.all()
     serializer_class = JobImageSerializer
+
+
+class NProcessPipeTypeViewSet(ReadOnlyModelViewSet):
+    """
+    A simple ViewSet for listing or retrieving prototypes.
+    """
+
+    queryset = NProcessPipeType.objects.all()
+    serializer_class = NProcessPipeTypeSerializer
