@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import (
     MItem,
@@ -10,6 +10,8 @@ from .models import (
     Job,
     Ticket,
     MProcess,
+    NProcessType,
+    NItemResizeType,
 )
 
 
@@ -40,6 +42,18 @@ def increment_item_count(sender, instance, created, **kwargs):
         increment_serial_table_entry("itm")
 
 
+@receiver(post_save, sender=NProcessType)
+def increment_item_count(sender, instance, created, **kwargs):
+    if created:  # Only increment when a new item is created
+        increment_serial_table_entry("pt")
+
+
+@receiver(post_save, sender=NItemResizeType)
+def increment_customer_count(sender, instance, created, **kwargs):
+    if created:
+        increment_serial_table_entry("itmrz")
+
+
 @receiver(post_save, sender=MMetal)
 def increment_metal_count(sender, instance, created, **kwargs):
     if created:
@@ -67,4 +81,4 @@ def increment_customer_count(sender, instance, created, **kwargs):
 @receiver(post_save, sender=MProcess)
 def increment_customer_count(sender, instance, created, **kwargs):
     if created:
-        increment_serial_table_entry("prc")
+        increment_serial_table_entry("itmrz")

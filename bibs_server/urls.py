@@ -32,6 +32,9 @@ from bibs.views import (
     CustomerViewSet,
     TicketViewSet,
     NProcessPipeTypeViewSet,
+    NProcessTypeViewSet,
+    NItemResizeTypeViewSet,
+    MTrsProcessTypeViewSet,
 )
 
 router = DefaultRouter()
@@ -40,7 +43,12 @@ router = DefaultRouter()
 router.register(r"m-items", MItemViewSet)
 router.register(r"m-metals", MMetalViewSet)
 router.register(r"m-metal-processes", MMetalProcessViewSet)
+router.register(r"prototypes-list", NProcessPipeTypeViewSet)
 router.register(r"m-processes", MProcessViewSet)
+router.register(r"m-process-types", NProcessTypeViewSet)
+router.register(r"m-item-resize", NItemResizeTypeViewSet)
+
+
 router.register(r"employees", EmployeeCreateView)  # Employee CRUD ndpoint
 router.register(r"customers", CustomerViewSet)
 router.register(r"tickets", TicketViewSet)
@@ -50,8 +58,7 @@ router.register(r"job-images", JobImageViewSet)
 router.register(r"trs-items-metals", MTrsItemsMetalsViewSet)
 router.register(r"trs-metals-metalprocess", MTrsMetalMetalProcessViewSet)
 router.register(r"trs-metalprocess-process", MTrsProcessViewSet)
-
-router.register(r"prototypes-list", NProcessPipeTypeViewSet)
+router.register(r"trs-process-types", MTrsProcessTypeViewSet)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

@@ -74,6 +74,7 @@ class MMetalProcess(models.Model):
 class MProcess(models.Model):
     pr_id = models.CharField(max_length=10, primary_key=True)
     desc = models.CharField(max_length=50)
+    pipe = models.CharField(max_length=50)
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
     created_by = models.CharField(max_length=50, blank=True, null=True)
@@ -84,6 +85,27 @@ class MProcess(models.Model):
 
     class Meta:
         db_table = "nprocess"
+
+
+class NProcessType(models.Model):
+    pt_id = models.CharField(max_length=10, primary_key=True)
+    processName = models.CharField(
+        max_length=50
+    )  # Assuming `processNa` is a string field
+    processPipe = models.CharField(
+        max_length=50
+    )  # Assuming `processNa` is a string field
+    nActive = models.BooleanField(default=False)  # Active status
+    created_by = models.CharField(max_length=50, blank=True, null=True)
+    updated_by = models.CharField(max_length=50, blank=True, null=True)
+    nCreatedDate = models.DateTimeField(auto_now_add=True)  # Auto-generated on creation
+    nUpdatedDate = models.DateTimeField(auto_now=True)  # Auto-updated on modification
+
+    def __str__(self):
+        return f"{self.processNa} ({self.pt_id})"
+
+    class Meta:
+        db_table = "nprocesstype"  # Specify table name
 
 
 class SerialTable(models.Model):
@@ -156,6 +178,25 @@ class MTrsProcess(models.Model):
 
     def __str__(self):
         return f"{self.process.pr_id} - {self.metal_process.mepr_id}"
+
+
+class MTrsProcessType(models.Model):
+    process_type = models.ForeignKey(
+        NProcessType, on_delete=models.CASCADE, db_column="pt_id"
+    )
+    process = models.ForeignKey(MProcess, on_delete=models.CASCADE, db_column="pr_id")
+
+    seq_no = models.IntegerField(default=0)  # Sequence Number
+
+    class Meta:
+        db_table = "M_trs_process_type"
+        unique_together = (
+            "process_type",
+            "process",
+        )
+
+    def __str__(self):
+        return f"{self.process.pr_id} - {self.process_type.pt_id}"
 
 
 class Employee(models.Model):
@@ -400,3 +441,20 @@ class NProcessPipeType(models.Model):
 
     def __str__(self):
         return self.nProType
+
+
+class NItemResizeType(models.Model):
+    itmrz_id = models.CharField(max_length=10, primary_key=True)
+    nType = models.CharField(max_length=50)  # Assuming `nType` is a string field
+    nSeqNo = models.IntegerField()  # Sequence Number
+    nActive = models.BooleanField(default=False)  # Active Status
+    nCreatedDate = models.DateTimeField(auto_now_add=True)  # Auto-generated on creation
+    nUpdatedDate = models.DateTimeField(auto_now=True)  # Auto-updated on modification
+    created_by = models.CharField(max_length=50, blank=True, null=True)
+    updated_by = models.CharField(max_length=50, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.nType} ({self.nId})"
+
+    class Meta:
+        db_table = "nitemresizetype"  # Specify table name

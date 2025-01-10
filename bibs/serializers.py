@@ -12,8 +12,11 @@ from .models import (
     Customer,
     Ticket,
     Job,
+    NProcessType,
+    NItemResizeType,
+    MTrsProcessType,
+    NProcessPipeType,
 )
-from .models import NProcessPipeType
 
 
 class BaseSerializer(serializers.ModelSerializer):
@@ -24,11 +27,11 @@ class BaseSerializer(serializers.ModelSerializer):
     def validate(self, data):
         if self.instance:
             # Validation for updates
-            if "updated_by" not in data or not data["updated_by"]:
-                raise serializers.ValidationError(
-                    {"updated_by": "This field is required for updates."}
-                )
-        else:
+            # if "updated_by" not in data or not data["updated_by"]:
+            #     raise serializers.ValidationError(
+            #         {"updated_by": "This field is required for updates."}
+            #     )
+            # else:
             # Validation for creation
             if "created_by" not in data or not data["created_by"]:
                 raise serializers.ValidationError(
@@ -80,6 +83,12 @@ class MTrsMetalMetalProcessSerializer(serializers.ModelSerializer):
 class MTrsProcessSerializer(serializers.ModelSerializer):
     class Meta:
         model = MTrsProcess
+        fields = "__all__"
+
+
+class MTrsProcessTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MTrsProcessType
         fields = "__all__"
 
 
@@ -173,3 +182,17 @@ class NProcessPipeTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = NProcessPipeType
         fields = ["nPTId", "nProType"]
+
+
+class NProcessTypeSerializer(BaseSerializer):
+    class Meta:
+        model = NProcessType
+        fields = "__all__"
+        unique_field = "pt_id"
+
+
+class NItemResizeTypeSerializer(BaseSerializer):
+    class Meta:
+        model = NItemResizeType
+        fields = "__all__"
+        unique_field = "itmrz_id"
