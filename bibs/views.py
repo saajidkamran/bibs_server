@@ -638,7 +638,7 @@ class MTrsProcessTypeViewSet(BaseRestrictedViewSet):
                     {
                         "pt_id": process_ids,
                         "seq_no": pType["seq_no"],
-                        "metalProcessName": mProcess_name,
+                        "processName": mProcess_name,
                     }
                 )
 
