@@ -394,16 +394,32 @@ class MTrsProcessViewSet(BaseRestrictedViewSet):
             related_processes = self.queryset.filter(
                 metal_process_id=metal_process_id
             ).values("process__pr_id", "process__desc", "seq_no")
+            response_data = []
 
+            for process in related_processes:
+                Process_Pipe = (
+                    MProcess.objects.filter(pr_id=process["process__pr_id"])
+                    .values_list("pipe", flat=True)
+                    .first()
+                )
+
+                response_data.append(
+                    {
+                        "pr_id": process["process__pr_id"],
+                        "seq_no": process["seq_no"],
+                        "processName": process["process__desc"],
+                        "processPipe": Process_Pipe,
+                    }
+                )
             # Format the response
-            response_data = [
-                {
-                    "pr_id": process["process__pr_id"],
-                    "seq_no": process["seq_no"],
-                    "processName": process["process__desc"],
-                }
-                for process in related_processes
-            ]
+            # response_data = [
+            #     {
+            #         "pr_id": process["process__pr_id"],
+            #         "seq_no": process["seq_no"],
+            #         "processName": process["process__desc"],
+            #     }
+            #     for process in related_processes
+            # ]
 
             return Response({"process_ids": response_data}, status=status.HTTP_200_OK)
         except Exception as e:
@@ -629,16 +645,21 @@ class MTrsProcessTypeViewSet(BaseRestrictedViewSet):
             for pType in related_processes_types:
                 process_ids = pType["process_type_id"]
 
-                mProcess_name = (
+                Process_name = (
                     NProcessType.objects.filter(pt_id=process_ids)
                     .values_list("processName", flat=True)
+                    .first()
+                )
+                Process_Pipe = (
+                    NProcessType.objects.filter(pt_id=process_ids)
+                    .values_list("processPipe", flat=True)
                     .first()
                 )
                 response_data.append(
                     {
                         "pt_id": process_ids,
                         "seq_no": pType["seq_no"],
-                        "processName": mProcess_name,
+                        "processName": Process_name,
                     }
                 )
 
