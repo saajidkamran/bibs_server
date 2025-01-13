@@ -12,6 +12,7 @@ from .models import (
     MProcess,
     NProcessType,
     NItemResizeType,
+    NAccountSummary,
 )
 
 
@@ -82,3 +83,11 @@ def increment_customer_count(sender, instance, created, **kwargs):
 def increment_customer_count(sender, instance, created, **kwargs):
     if created:
         increment_serial_table_entry("itmrz")
+
+
+@receiver(post_save, sender=NAccountSummary)
+def update_tot_outstand(sender, instance, **kwargs):
+    """
+    Automatically update nTotOutStand whenever the record is saved.
+    """
+    instance.update_outstanding()
