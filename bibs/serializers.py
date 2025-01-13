@@ -16,6 +16,7 @@ from .models import (
     NItemResizeType,
     MTrsProcessType,
     NProcessPipeType,
+    NAccountSummary,
 )
 
 
@@ -117,7 +118,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "nOverTime": {"required": True},
             "nNoOfAppLeave": {"required": False},
             "nLeaveTaken": {"required": False},
-            "nCreatedBy": {"required": False},
+            "created_by": {"required": False},
             "nUpdatedBy": {"required": False},
             "nPwdHash": {"required": False},
             "nPwdSalt": {"required": False},
@@ -151,10 +152,16 @@ class CustomerSerializer(serializers.ModelSerializer):
             "nWebsite": {"required": True},
             "nCreditLimit": {"required": True},
             "nVAT": {"required": True},
-            "nCreatedBy": {"required": False},
+            "created_by": {"required": False},
             "nUpdatedBy": {"required": False},
             "nSMS": {"required": True},
         }
+
+
+class NAccountSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NAccountSummary
+        fields = "__all__"
 
 
 class TicketSerializer(serializers.ModelSerializer):
@@ -162,6 +169,11 @@ class TicketSerializer(serializers.ModelSerializer):
         model = Ticket
         fields = "__all__"
         unique_field = "nTKTCODE"
+
+    def validate_customer(self, value):
+        if value == "":
+            return None  # Convert empty string to None
+        return value
 
 
 class JobSerializer(serializers.ModelSerializer):

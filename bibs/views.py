@@ -1,3 +1,4 @@
+from decimal import ROUND_HALF_UP, Decimal
 from django.forms import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.response import Response
@@ -16,12 +17,14 @@ from .models import (
     MTrsProcess,
     Employee,
     Customer,
+    SetupCompany,
     Ticket,
     SerialTable,
     NProcessPipeType,
     NProcessType,
     NItemResizeType,
     MTrsProcessType,
+    NAccountSummary,
 )
 from .serializers import (
     JobImageSerializer,
@@ -40,6 +43,7 @@ from .serializers import (
     NProcessTypeSerializer,
     NItemResizeTypeSerializer,
     MTrsProcessTypeSerializer,
+    NAccountSummarySerializer,
 )
 
 
@@ -119,6 +123,7 @@ class BaseModelViewSet(viewsets.ModelViewSet):
             # elif request.data.get("nCUSCODE"):
             #     request.data["nUpdatedBy"] = request.data.pop("user")
             # else:
+
             request.data["updated_by"] = request.data.pop("user")
 
             serializer = self.get_serializer(instance, data=request.data, partial=False)
@@ -148,6 +153,7 @@ class BaseModelViewSet(viewsets.ModelViewSet):
 
         #     request.data["nUpdatedBy"] = request.data.pop("user")
         # else:
+
         request.data["updated_by"] = request.data.pop("user")
 
         return super().update(request, *args, **kwargs)
@@ -723,6 +729,54 @@ class CustomerViewSet(BaseModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
 
+    def create(self, request, *args, **kwargs):
+        """
+        Override the create method to update the NAccountSummary table
+        for a newly created customer.
+        """
+        response = super().create(request, *args, **kwargs)
+
+        # After the customer is created, update NAccountSummary
+        customer_data = response.data
+        nCUSCODE = customer_data.get("nCUSCODE")
+        created_by = customer_data.get("created_by")
+
+        # Check if a record already exists for the customer in NAccountSummary
+        if not NAccountSummary.objects.filter(nACUSID=nCUSCODE).exists():
+            NAccountSummary.objects.create(
+                nACUSID=nCUSCODE,
+                nTickets=0,  # Default value
+                nPayment=0,  # Default value
+                nTotOutStand=0,  # Default value
+                created_by=created_by,  # Dynamically set nCreatedBy
+            )
+
+        return response
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Override the destroy method to delete the corresponding NAccountSummary
+        record when a customer is deleted.
+        """
+        instance = self.get_object()  # Get the customer instance
+        nCUSCODE = instance.nCUSCODE  # Get the customer's nCUSCODE
+
+        # Delete the corresponding record in NAccountSummary
+        NAccountSummary.objects.filter(nACUSID=nCUSCODE).delete()
+
+        # Proceed with deleting the customer
+        response = super().destroy(request, *args, **kwargs)
+        return response
+
+
+# class TicketViewSet(BaseModelViewSet):
+#     """
+#     API endpoint for managing tickets.
+#     """
+
+#     queryset = Ticket.objects.all()
+#     serializer_class = TicketSerializer
+
 
 class TicketViewSet(BaseModelViewSet):
     """
@@ -731,6 +785,46 @@ class TicketViewSet(BaseModelViewSet):
 
     queryset = Ticket.objects.all()
     serializer_class = TicketSerializer
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        customer_id = data.get("customer")
+        price_no_vat = data.get("nCostNoVAT")
+
+        setup_company = SetupCompany.objects.first()
+
+        if not setup_company:
+            return Response(
+                {"error": "No company found in the SetupCompany table."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        # Add the latest vat_no to the ticket data
+        vat_value = (setup_company.vat_no * price_no_vat / Decimal(100)).quantize(
+            Decimal("0.01"), ROUND_HALF_UP
+        )
+        request.data["nCalVat"] = vat_value
+        # Ensure the customer field is properly handled
+        if customer_id:
+
+            # Check if the customer exists in NAccountSummary
+            account_summary = NAccountSummary.objects.filter(
+                nACUSID=customer_id
+            ).first()
+            if account_summary:
+                # Update the nTickets value with the nTCost from the ticket
+                nTCost = data.get("nTCost", 0)
+                if nTCost:
+                    account_summary.nTickets += Decimal(nTCost)
+                    account_summary.update_outstanding()  # Update nTotOutStand
+                    account_summary.save()
+                else:
+                    return Response(
+                        {"error": "nTCost is required and should be a valid number."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+        # Proceed with ticket creation
+        return super().create(request, *args, **kwargs)
 
     @action(detail=False, methods=["get"], url_path="customer-tickets")
     def get_customer_tickets(self, request):
@@ -772,3 +866,29 @@ class NProcessPipeTypeViewSet(ReadOnlyModelViewSet):
 
     queryset = NProcessPipeType.objects.all()
     serializer_class = NProcessPipeTypeSerializer
+
+
+class NAccountSummaryViewSet(viewsets.ModelViewSet):
+    queryset = NAccountSummary.objects.all()
+    serializer_class = NAccountSummarySerializer
+
+    # Custom action to filter data based on customer ID
+    @action(detail=False, methods=["get"], url_path="by-customer")
+    def get_by_customer(self, request):
+        customer_id = request.query_params.get("customer_id")
+        if not customer_id:
+            return Response(
+                {"error": "customer_id query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            account_summaries = self.queryset.filter(nACUSID=customer_id)
+            if not account_summaries.exists():
+                return Response(
+                    {"message": "No account summaries found for the given customer."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            serializer = self.get_serializer(account_summaries, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
