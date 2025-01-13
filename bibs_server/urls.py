@@ -35,6 +35,7 @@ from bibs.views import (
     NProcessTypeViewSet,
     NItemResizeTypeViewSet,
     MTrsProcessTypeViewSet,
+    NAccountSummaryViewSet,
 )
 
 router = DefaultRouter()
@@ -59,6 +60,7 @@ router.register(r"trs-items-metals", MTrsItemsMetalsViewSet)
 router.register(r"trs-metals-metalprocess", MTrsMetalMetalProcessViewSet)
 router.register(r"trs-metalprocess-process", MTrsProcessViewSet)
 router.register(r"trs-process-types", MTrsProcessTypeViewSet)
+router.register(r"naccountsummary", NAccountSummaryViewSet, basename="naccountsummary")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
