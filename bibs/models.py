@@ -458,3 +458,29 @@ class NItemResizeType(models.Model):
 
     class Meta:
         db_table = "nitemresizetype"  # Specify table name
+
+
+class NAccountSummary(models.Model):
+    nID = models.BigAutoField(primary_key=True)
+    nACUSID = models.CharField(max_length=50, null=False)  # Customer ID
+    nTickets = models.DecimalField(max_digits=20, decimal_places=10)
+    nPayment = models.DecimalField(max_digits=20, decimal_places=2)
+    nTotOutStand = models.DecimalField(max_digits=20, decimal_places=4, default=0.0)
+    nLastUDate = models.DateField(null=True, blank=True)  # Handles NULL dates
+    nCreatedDate = models.DateTimeField(auto_now_add=True)  # Auto-generated on creation
+    nCreatedBy = models.CharField(max_length=50, blank=True, null=True)
+    nUpdatedDate = models.DateTimeField(auto_now=True)  # Auto-updated on modification
+    nUpdatedBy = models.CharField(max_length=50, blank=True, null=True)
+
+    def __str__(self):
+        return f"Account Summary ID: {self.nID}"
+
+    def update_outstanding(self):
+        """
+        Update nTotOutStand as nTickets - nPayment.
+        """
+        self.nTotOutStand = self.nTickets - self.nPayment
+        self.save()
+
+    class Meta:
+        db_table = "naccount_summary"
