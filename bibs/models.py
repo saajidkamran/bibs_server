@@ -29,6 +29,7 @@ class MItem(models.Model):
     it_id = models.CharField(max_length=10, primary_key=True)
     desc = models.CharField(max_length=50)
     seq_no = models.CharField(max_length=10)
+    nActive = models.BooleanField(default=True)
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
     created_by = models.CharField(max_length=50, blank=True, null=True)
@@ -44,6 +45,7 @@ class MItem(models.Model):
 class MMetal(models.Model):
     met_id = models.CharField(max_length=10, primary_key=True)
     desc = models.CharField(max_length=50)
+    nActive = models.BooleanField(default=True)
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
     created_by = models.CharField(max_length=50, blank=True, null=True)
@@ -59,6 +61,7 @@ class MMetal(models.Model):
 class MMetalProcess(models.Model):
     mepr_id = models.CharField(max_length=10, primary_key=True)
     desc = models.CharField(max_length=50)
+    nActive = models.BooleanField(default=True)
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
     created_by = models.CharField(max_length=50, blank=True, null=True)
@@ -75,6 +78,7 @@ class MProcess(models.Model):
     pr_id = models.CharField(max_length=10, primary_key=True)
     desc = models.CharField(max_length=50)
     pipe = models.CharField(max_length=50)
+    nActive = models.BooleanField(default=True)
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
     created_by = models.CharField(max_length=50, blank=True, null=True)
