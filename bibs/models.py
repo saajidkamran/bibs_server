@@ -8,7 +8,7 @@ class SetupCompany(models.Model):
     email = models.EmailField(blank=True, null=True)
     web = models.URLField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
-    vat_no = models.CharField(max_length=50, blank=True, null=True)
+    vat_no = models.DecimalField(max_digits=5, decimal_places=2)
     logo = models.ImageField(upload_to="logos/", blank=True, null=True)
     bank_name = models.CharField(max_length=100, blank=True, null=True)
     account_no = models.CharField(max_length=50, blank=True, null=True)
@@ -234,8 +234,8 @@ class Employee(models.Model):
     nLeaveTaken = models.IntegerField(default=0)  # Number of Leaves Taken
     nCreatedDate = models.DateTimeField(auto_now_add=True)  # Creation Date
     nUpdatedDate = models.DateTimeField(auto_now=True)  # Update Date
-    nCreatedBy = models.CharField(max_length=50, null=True, blank=True)  # Created By
-    nUpdatedBy = models.CharField(max_length=50, null=True, blank=True)  # Updated By
+    created_by = models.CharField(max_length=50, null=True, blank=True)  # Created By
+    updated_by = models.CharField(max_length=50, null=True, blank=True)  # Updated By
     nFSID = models.UUIDField(
         default=uuid.uuid4, unique=True, editable=False
     )  # Foreign System ID (GUID)
@@ -270,8 +270,8 @@ class Customer(models.Model):
     nVAT = models.BooleanField(default=False)
     nCreatedDate = models.DateTimeField(auto_now_add=True)
     nUpdatedDate = models.DateTimeField(auto_now=True)
-    nCreatedBy = models.CharField(max_length=50, null=True, blank=True)
-    nUpdatedBy = models.CharField(max_length=50, null=True, blank=True)
+    created_by = models.CharField(max_length=50, null=True, blank=True)
+    updated_by = models.CharField(max_length=50, null=True, blank=True)
     nSMS = models.BooleanField(default=False)
 
     def __str__(self):
@@ -284,13 +284,14 @@ class Customer(models.Model):
 class Ticket(models.Model):
     nTKTCODE = models.CharField(max_length=20, primary_key=True, unique=True)
     nStatID = models.IntegerField()  # Status ID
-
     customer = models.ForeignKey(
         Customer,
         to_field="nCUSCODE",
         db_column="nCUSCODE",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,  # Use SET_NULL to keep tickets even if the customer is deleted
         related_name="tickets",
+        null=True,  # Allow NULL values
+        blank=True,  # Allow blank values in forms
     )
     nDocNo = models.CharField(max_length=50, null=True, blank=True)
     nDueDate = models.DateField()
@@ -470,11 +471,11 @@ class NAccountSummary(models.Model):
     nTickets = models.DecimalField(max_digits=20, decimal_places=10)
     nPayment = models.DecimalField(max_digits=20, decimal_places=2)
     nTotOutStand = models.DecimalField(max_digits=20, decimal_places=4, default=0.0)
-    nLastUDate = models.DateField(null=True, blank=True)  # Handles NULL dates
+    # nLastUDate = models.DateField(null=True, blank=True)  # Handles NULL dates
     nCreatedDate = models.DateTimeField(auto_now_add=True)  # Auto-generated on creation
-    nCreatedBy = models.CharField(max_length=50, blank=True, null=True)
+    created_by = models.CharField(max_length=50, blank=True, null=True)
     nUpdatedDate = models.DateTimeField(auto_now=True)  # Auto-updated on modification
-    nUpdatedBy = models.CharField(max_length=50, blank=True, null=True)
+    updated_by = models.CharField(max_length=50, blank=True, null=True)
 
     def __str__(self):
         return f"Account Summary ID: {self.nID}"
@@ -487,4 +488,4 @@ class NAccountSummary(models.Model):
         self.save()
 
     class Meta:
-        db_table = "naccount_summary"
+        db_table = "nAccountSummary"
