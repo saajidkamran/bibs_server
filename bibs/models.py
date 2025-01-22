@@ -283,7 +283,7 @@ class Customer(models.Model):
 
 class Ticket(models.Model):
     nTKTCODE = models.CharField(max_length=20, primary_key=True, unique=True)
-    nStatID = models.IntegerField()  # Status ID
+    nStatID = models.IntegerField(default=1)  # Status ID
     customer = models.ForeignKey(
         Customer,
         to_field="nCUSCODE",
@@ -303,9 +303,9 @@ class Ticket(models.Model):
     nTPaid = models.DecimalField(max_digits=10, decimal_places=2)
     nTDue = models.DecimalField(max_digits=10, decimal_places=2)
     multipleImages = models.BooleanField(default=False)
-    isCashCustomer = models.BooleanField(default=False)
-    isCusNotSigned = models.BooleanField(default=False)
-    nFSID = models.UUIDField(default=None, null=True, blank=True)
+    isCashCustomer = models.IntegerField(default=0)
+    isCusNotSigned = models.IntegerField(default=0)
+    nFSID = models.IntegerField(default=1)
     nCusSignImage = models.TextField(null=True, blank=True)
     nComments = models.TextField(null=True, blank=True)
     nActive = models.BooleanField(default=True)
