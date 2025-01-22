@@ -790,19 +790,28 @@ class TicketViewSet(BaseModelViewSet):
         data = request.data
         customer_id = data.get("customer")
         price_no_vat = data.get("nCostNoVAT")
+        is_cash_cus = data.get("isCashCustomer")
+        cost_no_vat = data.get("nCostNoVAT")
+
+        # vat_value = 0
 
         setup_company = SetupCompany.objects.first()
+        if is_cash_cus == 2:
+            if not setup_company:
+                return Response(
+                    {"error": "No company found in the SetupCompany table."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            # Add the latest vat_no to the ticket data
+            # vat_value = (setup_company.vat_no * price_no_vat / Decimal(100)).quantize(
+            #     Decimal("0.01"), ROUND_HALF_UP
+            # )
 
-        if not setup_company:
-            return Response(
-                {"error": "No company found in the SetupCompany table."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        # Add the latest vat_no to the ticket data
-        vat_value = (setup_company.vat_no * price_no_vat / Decimal(100)).quantize(
-            Decimal("0.01"), ROUND_HALF_UP
-        )
-        request.data["nCalVat"] = vat_value
+        request.data["nCalVat"] = setup_company.vat_no
+        request.data["nTCost"] = cost_no_vat + setup_company.vat_no
+        request.data["nTPaid"] = 0
+        request.data["nTDue"] = cost_no_vat + setup_company.vat_no
+
         # Ensure the customer field is properly handled
         if customer_id:
 
