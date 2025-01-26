@@ -317,6 +317,15 @@ class Ticket(models.Model):
     nReadyBy = models.CharField(max_length=50, null=True, blank=True)
     nReleasedBy = models.CharField(max_length=50, null=True, blank=True)
 
+    def save(self, *args, **kwargs):
+        """
+        Automatically update nTDue before saving the object.
+        """
+        # Calculate nTDue
+        self.nTDue = self.nTCost - self.nTPaid
+        # Call the default save method
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.nTKTCODE
 
@@ -489,3 +498,34 @@ class NAccountSummary(models.Model):
 
     class Meta:
         db_table = "nAccountSummary"
+
+
+class NPaymentType(models.Model):
+    nId = models.AutoField(primary_key=True)
+    nType = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.nType  # String representation of the model
+
+    class Meta:
+        db_table = "nPaymentType"  # Custom table name
+
+
+class NPayment(models.Model):
+    nId = models.AutoField(primary_key=True)
+    nCusID = models.CharField(max_length=50)  # Customer ID
+    nMonWeek = models.IntegerField()  # Month/Week
+    nPaidAmount = models.DecimalField(max_digits=10, decimal_places=2)  # Paid Amount
+    nPayType = models.IntegerField()  # Payment Type (reference to NPaymentType)
+    paymentDetail = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Payment Details
+    nComments = models.TextField(null=True, blank=True)  # Comments
+    nCreatedDate = models.DateTimeField(auto_now_add=True)  # Auto set on creation
+    nCreatedBy = models.CharField(max_length=50, null=True, blank=True)  # Created By
+
+    def __str__(self):
+        return f"{self.nCusID} - {self.nPaidAmount}"
+
+    class Meta:
+        db_table = "nPayment"

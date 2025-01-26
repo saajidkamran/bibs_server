@@ -1,3 +1,6 @@
+from calendar import month_name
+from collections import defaultdict
+import datetime
 from decimal import ROUND_HALF_UP, Decimal
 from django.forms import ValidationError
 from rest_framework import viewsets, status
@@ -17,6 +20,8 @@ from .models import (
     MTrsProcess,
     Employee,
     Customer,
+    NPayment,
+    NPaymentType,
     SetupCompany,
     Ticket,
     SerialTable,
@@ -38,6 +43,7 @@ from .serializers import (
     MTrsMetalMetalProcessSerializer,
     EmployeeSerializer,
     CustomerSerializer,
+    NPaymentTypeSerializer,
     TicketSerializer,
     NProcessPipeTypeSerializer,
     NProcessTypeSerializer,
@@ -810,6 +816,7 @@ class TicketViewSet(BaseModelViewSet):
         request.data["nCalVat"] = setup_company.vat_no
         request.data["nTCost"] = cost_no_vat + setup_company.vat_no
         request.data["nTPaid"] = 0
+        # check if this neadded and this should be  btcist - ntpaid
         request.data["nTDue"] = cost_no_vat + setup_company.vat_no
 
         # Ensure the customer field is properly handled
@@ -857,6 +864,222 @@ class TicketViewSet(BaseModelViewSet):
         serialized_tickets = self.get_serializer(tickets, many=True)
         return Response(serialized_tickets.data, status=status.HTTP_200_OK)
 
+    @action(detail=False, methods=["get"], url_path="group-by-month")
+    def get_tickets_grouped_by_month(self, request):
+        """
+        API to retrieve tickets grouped by year and month based on the 'nAcceptedBy' field for a specific customer.
+        """
+        customer_id = request.query_params.get("customer_id")
+        if not customer_id:
+            return Response(
+                {"error": "customer_id query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Filter tickets by customer ID
+        tickets = self.queryset.filter(customer__nCUSCODE=customer_id)
+
+        if not tickets.exists():
+            return Response(
+                {"message": "No tickets found for the given customer."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Group tickets by year and month
+        grouped_tickets = defaultdict(
+            lambda: defaultdict(
+                lambda: {
+                    "no_of_tickets": 0,
+                    "job_amount": 0,
+                    "paid_amount": 0,
+                    "due_amount": 0,
+                }
+            )
+        )
+
+        # Store year-specific totals
+        year_totals = defaultdict(
+            lambda: {
+                "no_of_tickets": 0,
+                "job_amount": 0,
+                "paid_amount": 0,
+                "due_amount": 0,
+            }
+        )
+
+        for ticket in tickets:
+            if ticket.nAcceptedDate:
+                try:
+                    if isinstance(ticket.nAcceptedDate, datetime.datetime):
+                        year = ticket.nAcceptedDate.year
+                        month = ticket.nAcceptedDate.month
+                    else:
+                        continue
+                except ValueError:
+                    continue
+
+                grouped_tickets[year][month]["no_of_tickets"] += 1
+                grouped_tickets[year][month]["job_amount"] += ticket.nTCost
+                grouped_tickets[year][month]["paid_amount"] += ticket.nTPaid
+                grouped_tickets[year][month]["due_amount"] += ticket.nTDue
+
+                # Update year-specific totals
+                year_totals[year]["no_of_tickets"] += 1
+                year_totals[year]["job_amount"] += ticket.nTCost
+                year_totals[year]["paid_amount"] += ticket.nTPaid
+                year_totals[year]["due_amount"] += ticket.nTDue
+
+        # Format the response
+        response_data = {}
+        for year, months in grouped_tickets.items():
+            response_data[year] = {
+                "summary": [
+                    {
+                        "month": month_name[month],
+                        "no_of_tickets": data["no_of_tickets"],
+                        "job_amount": round(data["job_amount"], 2),
+                        "paid_amount": round(data["paid_amount"], 2),
+                        "due_amount": round(data["due_amount"], 2),
+                    }
+                    for month, data in sorted(months.items())
+                ],
+                "total": {
+                    "no_of_tickets": year_totals[year]["no_of_tickets"],
+                    "job_amount": round(year_totals[year]["job_amount"], 2),
+                    "paid_amount": round(year_totals[year]["paid_amount"], 2),
+                    "due_amount": round(year_totals[year]["due_amount"], 2),
+                },
+            }
+
+        # Calculate overall totals
+        total = {
+            "no_of_tickets": sum(
+                total["no_of_tickets"] for total in year_totals.values()
+            ),
+            "job_amount": sum(total["job_amount"] for total in year_totals.values()),
+            "paid_amount": sum(total["paid_amount"] for total in year_totals.values()),
+            "due_amount": sum(total["due_amount"] for total in year_totals.values()),
+        }
+
+        return Response(
+            {"results": response_data, "overall_total": total},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["post"], url_path="settle")
+    def settle_due_tickets(self, request):
+        """
+        Custom action to settle outstanding ticket dues for a customer.
+        """
+        try:
+            # 1. Get input data
+            nCusCode = request.data.get("nCusCode")
+            settlementAmount = Decimal(request.data.get("settlementAmount", 0))
+            paymentType = request.data.get("paymentType")
+            cardNumber = request.data.get("cardNumber")  # For paymentType 2
+            chequeNumber = request.data.get("chequeNumber")  # For paymentType 3
+            docNumber = request.data.get("docNumber")  # For paymentType 3
+            bankNumber = request.data.get("bankNumber")  # For paymentType 4
+            nEmployeeCode = request.data.get("nEmployeeCode")
+            comments = request.data.get("nComments", "")
+
+            if not nCusCode or settlementAmount <= 0:
+                return Response(
+                    {"error": "Invalid customer code or settlement amount."}, status=400
+                )
+
+            if not paymentType:
+                return Response({"error": "Payment type is required."}, status=400)
+
+            # 2. Determine paymentDetail based on paymentType
+            if paymentType == 2:  # Card payment
+                if not cardNumber:
+                    return Response(
+                        {"error": "Card number is required for paymentType 2 (Card)."},
+                        status=400,
+                    )
+                paymentDetail = f"CRD-{cardNumber}"
+            elif paymentType == 3:  # Cheque payment
+                if not chequeNumber or not docNumber:
+                    return Response(
+                        {
+                            "error": "Cheque number and doc number are required for paymentType 3 (Cheque)."
+                        },
+                        status=400,
+                    )
+                paymentDetail = f"CHK-{chequeNumber} D-{docNumber}"
+            elif paymentType == 4:  # Bank payment
+                if not bankNumber:
+                    return Response(
+                        {"error": "Bank number is required for paymentType 4 (Bank)."},
+                        status=400,
+                    )
+                paymentDetail = f"BNK-{bankNumber}"
+            else:  # Cash or other payment types
+                paymentDetail = "CASH"
+
+            # 3. Fetch due tickets for the customer
+            tickets = Ticket.objects.filter(
+                customer__nCUSCODE=nCusCode, nTDue__gt=0
+            ).order_by("nTDue", "nAcceptedDate")
+
+            if not tickets.exists():
+                return Response(
+                    {"message": "No outstanding dues for the customer."}, status=404
+                )
+
+            # 4. Process settlement
+            total_settled = Decimal(0)
+            for ticket in tickets:
+                due_amount = ticket.nTDue
+                if settlementAmount == 0:
+                    break
+
+                # Deduct the amount
+                payment = min(due_amount, settlementAmount)
+                ticket.nTPaid += payment
+                ticket.nTDue -= payment
+                ticket.save()  # Update ticket table
+
+                settlementAmount -= payment
+                total_settled += payment
+
+            # 5. Update NAccountSummary
+            account_summary = NAccountSummary.objects.filter(nACUSID=nCusCode).first()
+            if account_summary:
+                account_summary.nPayment += total_settled
+                account_summary.update_outstanding()  # Recalculate outstanding
+                account_summary.save()
+
+            # 6. Add entry to NPayment
+            NPayment.objects.create(
+                nCusID=nCusCode,
+                nMonWeek=0,
+                nPaidAmount=total_settled,
+                nPayType=paymentType,
+                paymentDetail=paymentDetail,
+                nComments=comments,
+                nCreatedDate=datetime.datetime.now(),
+                nCreatedBy=nEmployeeCode,
+            )
+
+            # 7. Return response
+            return Response(
+                {
+                    "message": "Settlement successful.",
+                    "total_settled": total_settled,
+                    "remaining_amount": settlementAmount,
+                    "updated_account_summary": {
+                        "nPayment": account_summary.nPayment,
+                        "nTotOutStand": account_summary.nTotOutStand,
+                    },
+                },
+                status=200,
+            )
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
 
 class JobViewSet(BaseModelViewSet):
     queryset = Job.objects.all()
@@ -901,3 +1124,12 @@ class NAccountSummaryViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class NPaymentTypeViewSet(ReadOnlyModelViewSet):
+    """
+    A simple ViewSet for listing or retrieving payment types.
+    """
+
+    queryset = NPaymentType.objects.all()
+    serializer_class = NPaymentTypeSerializer

@@ -30,6 +30,7 @@ from bibs.views import (
     MTrsMetalMetalProcessViewSet,
     EmployeeCreateView,
     CustomerViewSet,
+    NPaymentTypeViewSet,
     TicketViewSet,
     NProcessPipeTypeViewSet,
     NProcessTypeViewSet,
@@ -61,6 +62,8 @@ router.register(r"trs-metals-metalprocess", MTrsMetalMetalProcessViewSet)
 router.register(r"trs-metalprocess-process", MTrsProcessViewSet)
 router.register(r"trs-process-types", MTrsProcessTypeViewSet)
 router.register(r"naccountsummary", NAccountSummaryViewSet, basename="naccountsummary")
+
+router.register(r"payment-types", NPaymentTypeViewSet)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

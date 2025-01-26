@@ -10,6 +10,7 @@ from .models import (
     MTrsMetalMetalProcess,
     Employee,
     Customer,
+    NPaymentType,
     Ticket,
     Job,
     NProcessType,
@@ -208,3 +209,9 @@ class NItemResizeTypeSerializer(BaseSerializer):
         model = NItemResizeType
         fields = "__all__"
         unique_field = "itmrz_id"
+
+
+class NPaymentTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NPaymentType
+        fields = "__all__"  # Serialize all fields
