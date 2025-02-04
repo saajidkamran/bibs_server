@@ -1018,10 +1018,12 @@ class TicketViewSet(BaseModelViewSet):
             else:  # Cash or other payment types
                 paymentDetail = "CASH"
 
-            # 3. Fetch due tickets for the customer
+            # 3. Fetch due tickets for the customer, ordered by oldest nAcceptedDate first
             tickets = Ticket.objects.filter(
                 customer__nCUSCODE=nCusCode, nTDue__gt=0
-            ).order_by("nTDue", "nAcceptedDate")
+            ).order_by(
+                "nAcceptedDate", "nTKTCODE"
+            )  # Prioritizing oldest ticket first
 
             if not tickets.exists():
                 return Response(
@@ -1035,7 +1037,7 @@ class TicketViewSet(BaseModelViewSet):
                 if settlementAmount == 0:
                     break
 
-                # Deduct the amount
+                # Deduct from the earliest accepted ticket first
                 payment = min(due_amount, settlementAmount)
                 ticket.nTPaid += payment
                 ticket.nTDue -= payment
