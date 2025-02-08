@@ -532,11 +532,12 @@ class NPayment(models.Model):
 
 
 class CashCustomer(models.Model):
-    cashCusID = models.AutoField(primary_key=True)  # Auto-incrementing primary key
+    cashCusID = models.CharField(max_length=50, primary_key=True)  # Primary Key
     Name = models.CharField(max_length=255)  # Customer Name
     Address = models.TextField(null=True, blank=True)  # Customer Address
     CreatedDate = models.DateTimeField(auto_now_add=True)  # Auto set on creation
-    CreatedBy = models.CharField(max_length=50, null=True, blank=True)  # Created By
+    vat = models.BooleanField(default=False)
+    created_by = models.CharField(max_length=50, null=True, blank=True)  # Created By
     TicketID = models.CharField(
         max_length=50, null=True, blank=True
     )  # Associated Ticket ID
