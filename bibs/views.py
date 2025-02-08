@@ -9,6 +9,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework.decorators import action
 
 from .models import (
+    CashCustomer,
     Job,
     JobImage,
     MItem,
@@ -32,6 +33,7 @@ from .models import (
     NAccountSummary,
 )
 from .serializers import (
+    CashCustomerSerializer,
     JobImageSerializer,
     JobSerializer,
     MItemSerializer,
@@ -1135,3 +1137,8 @@ class NPaymentTypeViewSet(ReadOnlyModelViewSet):
 
     queryset = NPaymentType.objects.all()
     serializer_class = NPaymentTypeSerializer
+
+
+class CashCustomerViewSet(viewsets.ModelViewSet):
+    queryset = CashCustomer.objects.all()
+    serializer_class = CashCustomerSerializer

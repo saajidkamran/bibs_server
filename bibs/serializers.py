@@ -18,6 +18,7 @@ from .models import (
     MTrsProcessType,
     NProcessPipeType,
     NAccountSummary,
+    CashCustomer,
 )
 
 
@@ -214,4 +215,10 @@ class NItemResizeTypeSerializer(BaseSerializer):
 class NPaymentTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = NPaymentType
+        fields = "__all__"  # Serialize all fields
+
+
+class CashCustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CashCustomer
         fields = "__all__"  # Serialize all fields

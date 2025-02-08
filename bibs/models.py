@@ -529,3 +529,20 @@ class NPayment(models.Model):
 
     class Meta:
         db_table = "nPayment"
+
+
+class CashCustomer(models.Model):
+    cashCusID = models.AutoField(primary_key=True)  # Auto-incrementing primary key
+    Name = models.CharField(max_length=255)  # Customer Name
+    Address = models.TextField(null=True, blank=True)  # Customer Address
+    CreatedDate = models.DateTimeField(auto_now_add=True)  # Auto set on creation
+    CreatedBy = models.CharField(max_length=50, null=True, blank=True)  # Created By
+    TicketID = models.CharField(
+        max_length=50, null=True, blank=True
+    )  # Associated Ticket ID
+
+    def __str__(self):
+        return f"{self.Name} ({self.cashCusID})"
+
+    class Meta:
+        db_table = "cash_customer"  # Custom table name
