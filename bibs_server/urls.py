@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from bibs.views import (
+    CashCustomerViewSet,
     JobImageViewSet,
     JobViewSet,
     MItemViewSet,
@@ -62,7 +63,7 @@ router.register(r"trs-metals-metalprocess", MTrsMetalMetalProcessViewSet)
 router.register(r"trs-metalprocess-process", MTrsProcessViewSet)
 router.register(r"trs-process-types", MTrsProcessTypeViewSet)
 router.register(r"naccountsummary", NAccountSummaryViewSet, basename="naccountsummary")
-
+router.register(r"cash-customers", CashCustomerViewSet, basename="cash-customer")
 router.register(r"payment-types", NPaymentTypeViewSet)
 
 urlpatterns = [
