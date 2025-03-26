@@ -222,4 +222,3 @@ class CashCustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = CashCustomer
         fields = "__all__"  # Serialize all fields
-        unique_field = "cashCusID"
