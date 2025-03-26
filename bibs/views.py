@@ -103,6 +103,7 @@ class BaseModelViewSet(viewsets.ModelViewSet):
                 "nCUSCODE": "cus",
                 "nTKTCODE": "tkt",
                 "nJOBCODE": "job",
+                "cashCusID": "cash",
             }
             sr_code = sr_code_map.get(unique_field_name)
             if not sr_code:
@@ -797,7 +798,7 @@ class TicketViewSet(BaseModelViewSet):
     def create(self, request, *args, **kwargs):
         data = request.data
         customer_id = data.get("customer")
-        price_no_vat = data.get("nCostNoVAT")
+        # TODO:do it by checking i the cus tabvle if he is vat or not and remove from front end
         is_cash_cus = data.get("isCashCustomer")
         cost_no_vat = data.get("nCostNoVAT")
 
@@ -810,13 +811,12 @@ class TicketViewSet(BaseModelViewSet):
                     {"error": "No company found in the SetupCompany table."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            # Add the latest vat_no to the ticket data
-            # vat_value = (setup_company.vat_no * price_no_vat / Decimal(100)).quantize(
-            #     Decimal("0.01"), ROUND_HALF_UP
-            # )
 
         request.data["nCalVat"] = setup_company.vat_no
-        request.data["nTCost"] = cost_no_vat + setup_company.vat_no
+        request.data["nTCost"] = cost_no_vat
+        if is_cash_cus == 2:
+            request.data["nTCost"] = cost_no_vat + setup_company.vat_no
+
         request.data["nTPaid"] = 0
         # check if this neadded and this should be  btcist - ntpaid
         request.data["nTDue"] = cost_no_vat + setup_company.vat_no
@@ -974,20 +974,21 @@ class TicketViewSet(BaseModelViewSet):
         Custom action to settle outstanding ticket dues for a customer.
         """
         try:
+            # TODO:validate the ustomer by checking if he esisting in database
             # 1. Get input data
             nCusCode = request.data.get("nCusCode")
-            settlementAmount = Decimal(request.data.get("settlementAmount", 0))
-            paymentType = request.data.get("paymentType")
             cardNumber = request.data.get("cardNumber")  # For paymentType 2
             chequeNumber = request.data.get("chequeNumber")  # For paymentType 3
             docNumber = request.data.get("docNumber")  # For paymentType 3
             bankNumber = request.data.get("bankNumber")  # For paymentType 4
+            paymentType = request.data.get("paymentType")
+            settlementAmount = Decimal(request.data.get("settlementAmount", 0))
             nEmployeeCode = request.data.get("nEmployeeCode")
             comments = request.data.get("nComments", "")
-
             if not nCusCode or settlementAmount <= 0:
                 return Response(
-                    {"error": "Invalid customer code or settlement amount."}, status=400
+                    {"error": "Invalid customer code or settlement amount."},
+                    status=400,
                 )
 
             if not paymentType:
@@ -1019,67 +1020,112 @@ class TicketViewSet(BaseModelViewSet):
                 paymentDetail = f"BNK-{bankNumber}"
             else:  # Cash or other payment types
                 paymentDetail = "CASH"
+            if nCusCode != "CASH":
 
-            # 3. Fetch due tickets for the customer, ordered by oldest nAcceptedDate first
-            tickets = Ticket.objects.filter(
-                customer__nCUSCODE=nCusCode, nTDue__gt=0
-            ).order_by(
-                "nAcceptedDate", "nTKTCODE"
-            )  # Prioritizing oldest ticket first
+                # 3. Fetch due tickets for the customer, ordered by oldest nAcceptedDate first
+                tickets = Ticket.objects.filter(
+                    customer__nCUSCODE=nCusCode, nTDue__gt=0
+                ).order_by(
+                    "nAcceptedDate", "nTKTCODE"
+                )  # Prioritizing oldest ticket first
 
-            if not tickets.exists():
-                return Response(
-                    {"message": "No outstanding dues for the customer."}, status=404
+                if not tickets.exists():
+                    return Response(
+                        {"message": "No outstanding dues for the customer."}, status=404
+                    )
+
+                # 4. Process settlement
+                total_settled = Decimal(0)
+                for ticket in tickets:
+                    due_amount = ticket.nTDue
+                    if settlementAmount == 0:
+                        break
+
+                    # Deduct from the earliest accepted ticket first
+                    payment = min(due_amount, settlementAmount)
+                    ticket.nTPaid += payment
+                    ticket.nTDue -= payment
+                    ticket.save()  # Update ticket table
+
+                    settlementAmount -= payment
+                    total_settled += payment
+
+                # 5. Update NAccountSummary
+                account_summary = NAccountSummary.objects.filter(
+                    nACUSID=nCusCode
+                ).first()
+                if account_summary:
+                    account_summary.nPayment += total_settled
+                    account_summary.update_outstanding()  # Recalculate outstanding
+                    account_summary.save()
+
+                # 6. Add entry to NPayment
+                NPayment.objects.create(
+                    nCusID=nCusCode,
+                    nMonWeek=0,
+                    nPaidAmount=total_settled,
+                    nPayType=paymentType,
+                    paymentDetail=paymentDetail,
+                    nComments=comments,
+                    nCreatedDate=datetime.datetime.now(),
+                    nCreatedBy=nEmployeeCode,
                 )
 
-            # 4. Process settlement
-            total_settled = Decimal(0)
-            for ticket in tickets:
-                due_amount = ticket.nTDue
-                if settlementAmount == 0:
-                    break
-
-                # Deduct from the earliest accepted ticket first
-                payment = min(due_amount, settlementAmount)
-                ticket.nTPaid += payment
-                ticket.nTDue -= payment
-                ticket.save()  # Update ticket table
-
-                settlementAmount -= payment
-                total_settled += payment
-
-            # 5. Update NAccountSummary
-            account_summary = NAccountSummary.objects.filter(nACUSID=nCusCode).first()
-            if account_summary:
-                account_summary.nPayment += total_settled
-                account_summary.update_outstanding()  # Recalculate outstanding
-                account_summary.save()
-
-            # 6. Add entry to NPayment
-            NPayment.objects.create(
-                nCusID=nCusCode,
-                nMonWeek=0,
-                nPaidAmount=total_settled,
-                nPayType=paymentType,
-                paymentDetail=paymentDetail,
-                nComments=comments,
-                nCreatedDate=datetime.datetime.now(),
-                nCreatedBy=nEmployeeCode,
-            )
-
-            # 7. Return response
-            return Response(
-                {
-                    "message": "Settlement successful.",
-                    "total_settled": total_settled,
-                    "remaining_amount": settlementAmount,
-                    "updated_account_summary": {
-                        "nPayment": account_summary.nPayment,
-                        "nTotOutStand": account_summary.nTotOutStand,
+                # 7. Return response
+                return Response(
+                    {
+                        "message": "Settlement successful.",
+                        "total_settled": total_settled,
+                        "remaining_amount": settlementAmount,
+                        "updated_account_summary": {
+                            "nPayment": account_summary.nPayment,
+                            "nTotOutStand": account_summary.nTotOutStand,
+                        },
                     },
-                },
-                status=200,
-            )
+                    status=200,
+                )
+            else:
+                # 1 should check the ticket i d is there in cashccux table
+                # 2 update th esettle amount to nTpaid in tickete table
+                ticket_id = request.data.get("ticketId")
+                # settlementAmount = Decimal(request.data.get("settlementAmount", 0))
+
+                cash_customer = CashCustomer.objects.filter(TicketID=ticket_id).first()
+                if not cash_customer:
+                    return Response(
+                        {"error": "Ticket ID not found in CashCustomer table."},
+                        status=404,
+                    )
+
+                # Update nTPaid in Ticket table
+                ticket = Ticket.objects.filter(nTKTCODE=ticket_id).first()
+                if not ticket:
+                    return Response({"error": "Ticket not found."}, status=404)
+
+                ticket.nTPaid += settlementAmount
+                ticket.save()
+
+                # Add entry to NPayment
+                NPayment.objects.create(
+                    nCusID=cash_customer.cashCusID,
+                    nMonWeek=0,
+                    nPaidAmount=settlementAmount,
+                    nPayType=paymentType,  # Assuming 1 is for cash payments
+                    paymentDetail=paymentDetail,
+                    nComments=comments,
+                    nCreatedDate=datetime.datetime.now(),
+                    nCreatedBy=nEmployeeCode,
+                )
+
+                return Response(
+                    {
+                        "message": "Cash payment settled successfully.",
+                        "ticket_id": ticket_id,
+                        "nTPaid": ticket.nTPaid,
+                        "nCusID": cash_customer.cashCusID,
+                    },
+                    status=200,
+                )
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
@@ -1139,6 +1185,18 @@ class NPaymentTypeViewSet(ReadOnlyModelViewSet):
     serializer_class = NPaymentTypeSerializer
 
 
-class CashCustomerViewSet(viewsets.ModelViewSet):
+class CashCustomerViewSet(BaseModelViewSet):
     queryset = CashCustomer.objects.all()
     serializer_class = CashCustomerSerializer
+
+    def create(self, request, *args, **kwargs):
+        """
+        Override create to ensure 'created_by' is properly saved.
+        """
+
+        response = super().create(request, *args, **kwargs)  # Save object
+
+        # Debugging log
+        print("re>>>ER>>>", request.data)
+
+        return response
