@@ -1,20 +1,3 @@
-"""
-URL configuration for bibs_server project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.1/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
@@ -39,10 +22,12 @@ from bibs.views import (
     MTrsProcessTypeViewSet,
     NAccountSummaryViewSet,
 )
+from django.conf import settings
+from django.conf.urls.static import static
 
+# DRF Router
 router = DefaultRouter()
 
-# Unrestricted CRUD endpoints
 router.register(r"m-items", MItemViewSet)
 router.register(r"m-metals", MMetalViewSet)
 router.register(r"m-metal-processes", MMetalProcessViewSet)
@@ -51,8 +36,7 @@ router.register(r"m-processes", MProcessViewSet)
 router.register(r"m-process-types", NProcessTypeViewSet)
 router.register(r"m-item-resize", NItemResizeTypeViewSet)
 
-
-router.register(r"employees", EmployeeCreateView)  # Employee CRUD ndpoint
+router.register(r"employees", EmployeeCreateView)
 router.register(r"customers", CustomerViewSet)
 router.register(r"tickets", TicketViewSet)
 router.register(r"jobs", JobViewSet)
@@ -70,3 +54,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

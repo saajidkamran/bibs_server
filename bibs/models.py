@@ -353,6 +353,7 @@ class Job(models.Model):
     nJobDesc = models.TextField(null=True, blank=True)
     nJobDescHTML = models.TextField(null=True, blank=True)
     nActive = models.BooleanField(default=True)
+    pathimages = models.TextField(null=True, blank=True)  # Store URLs as JSON string
 
     def __str__(self):
         return self.nJOBCODE
