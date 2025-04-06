@@ -187,14 +187,26 @@ class JobImageSerializer(serializers.ModelSerializer):
 
 class JobSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
+    ticket_info = serializers.SerializerMethodField()  # <- Add this line
 
     class Meta:
         model = Job
-        fields = "__all__"  # or list fields manually
+        fields = "__all__"  # You can also explicitly list fields
         unique_field = "nJOBCODE"
 
     def get_images(self, obj):
         return [image.img_location for image in obj.images.all()]
+
+    def get_ticket_info(self, obj):
+        if obj.ticket:
+            return {
+                "nStatID": obj.ticket.nStatID,
+                "nDocNo": obj.ticket.nDocNo,
+                "nDueDate": obj.ticket.nDueDate,
+                "nDueTime": obj.ticket.nDueTime,
+                "nTCost": str(obj.ticket.nTCost),  # Convert Decimal to string for JSON
+            }
+        return {}
 
 
 class NProcessPipeTypeSerializer(serializers.ModelSerializer):
