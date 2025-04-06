@@ -2,6 +2,13 @@ from calendar import month_name
 from collections import defaultdict
 import datetime
 from decimal import ROUND_HALF_UP, Decimal
+import json
+import os
+from PIL import Image
+from django.core.files.storage import default_storage
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.conf import settings
+
 from django.forms import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.response import Response
@@ -835,11 +842,11 @@ class TicketViewSet(BaseModelViewSet):
                     account_summary.nTickets += Decimal(nTCost)
                     account_summary.update_outstanding()  # Update nTotOutStand
                     account_summary.save()
-                else:
-                    return Response(
-                        {"error": "nTCost is required and should be a valid number."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                # else:
+                #     return Response(
+                #         {"error": "nTCost is required and should be a valid number."},
+                #         status=status.HTTP_400_BAD_REQUEST,
+                #     )
 
         # Proceed with ticket creation
         return super().create(request, *args, **kwargs)
@@ -1134,6 +1141,87 @@ class TicketViewSet(BaseModelViewSet):
 class JobViewSet(BaseModelViewSet):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
+    parser_classes = (MultiPartParser, FormParser)
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        print("image>>", request.FILES.getlist("images"))
+
+        job_code = response.data.get("nJOBCODE")
+        images = request.FILES.getlist("images")  # Multiple files
+        base_url = request.build_absolute_uri(settings.MEDIA_URL)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+        image_data_array = []  # For storing all image dicts
+
+        for image in images:
+            ext = image.name.split(".")[-1]
+            base_name = f"{timestamp}_{job_code}"
+
+            # RAW
+            raw_filename = f"RAW_{base_name}.{ext}"
+            raw_rel_path = os.path.join("images/uploads", raw_filename)
+            raw_abs_path = os.path.join(settings.MEDIA_ROOT, raw_rel_path)
+            os.makedirs(os.path.dirname(raw_abs_path), exist_ok=True)
+            with open(raw_abs_path, "wb+") as destination:
+                for chunk in image.chunks():
+                    destination.write(chunk)
+
+            img = Image.open(image)
+
+            # THUMB
+            thumb = img.copy()
+            thumb.thumbnail((150, 150))
+            thumb_filename = f"THUMB_{base_name}.{ext}"
+            thumb_rel_path = os.path.join("images/uploads", thumb_filename)
+            thumb_abs_path = os.path.join(settings.MEDIA_ROOT, thumb_rel_path)
+            thumb.save(thumb_abs_path)
+
+            # 600x600
+            resized = img.copy()
+            resized = resized.resize((600, 600))
+            resized_filename = f"600_{base_name}.{ext}"
+            resized_rel_path = os.path.join("images/uploads", resized_filename)
+            resized_abs_path = os.path.join(settings.MEDIA_ROOT, resized_rel_path)
+            resized.save(resized_abs_path)
+
+            # Append all URLs to a list
+            image_data_array.append(
+                {
+                    "raw": base_url + raw_rel_path,
+                    "thumb": base_url + thumb_rel_path,
+                    "600": base_url + resized_rel_path,
+                }
+            )
+
+        # Save a single JobImage row
+        if image_data_array:
+            JobImage.objects.create(
+                job=Job.objects.get(nJOBCODE=job_code),
+                nJOBCODE=job_code,
+                img_location=json.dumps(image_data_array),
+            )
+
+        return response
+
+    @action(detail=False, methods=["get"], url_path="by-ticket")
+    def get_jobs_by_ticket(self, request):
+        ticket_id = request.query_params.get("ticket_id")
+        if not ticket_id:
+            return Response(
+                {"error": "ticket_id query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        jobs = self.queryset.filter(ticket__nTKTCODE=ticket_id)
+        if not jobs.exists():
+            return Response(
+                {"message": f"No jobs found for ticket_id '{ticket_id}'."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = self.get_serializer(jobs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class JobImageViewSet(BaseModelViewSet):

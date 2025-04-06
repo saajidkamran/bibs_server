@@ -366,9 +366,7 @@ class JobImage(models.Model):
     job = models.ForeignKey(
         Job, on_delete=models.CASCADE, related_name="images"
     )  # Foreign Key to Job (one-to-many relationship)
-    nTKTCODE = models.CharField(max_length=50)  # Ticket Code
     nJOBCODE = models.CharField(max_length=50)  # Job Code
-    img_id = models.CharField(max_length=100, unique=True)  # Image ID
     img_location = models.TextField()  # Image Location or Base64 Data
 
     def __str__(self):
@@ -533,7 +531,7 @@ class NPayment(models.Model):
 
 class CashCustomer(models.Model):
     cashCusID = models.CharField(max_length=50, primary_key=True)  # Primary Key
-    Name = models.CharField(max_length=255)  # Customer Name
+    Name = models.CharField(max_length=255)  # Customer Nam
     Address = models.TextField(null=True, blank=True)  # Customer Address
     CreatedDate = models.DateTimeField(auto_now_add=True)  # Auto set on creation
     vat = models.BooleanField(default=False)

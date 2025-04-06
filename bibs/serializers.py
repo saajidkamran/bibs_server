@@ -178,18 +178,23 @@ class TicketSerializer(serializers.ModelSerializer):
         return value
 
 
-class JobSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Job
-        fields = "__all__"
-        unique_field = "nJOBCODE"
-
-
 class JobImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobImage
         fields = "__all__"
         unique_field = "img_id"
+
+
+class JobSerializer(serializers.ModelSerializer):
+    images = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Job
+        fields = "__all__"  # or list fields manually
+        unique_field = "nJOBCODE"
+
+    def get_images(self, obj):
+        return [image.img_location for image in obj.images.all()]
 
 
 class NProcessPipeTypeSerializer(serializers.ModelSerializer):
