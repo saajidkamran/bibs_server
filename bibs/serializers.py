@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import (
     JobImage,
     MItem,
@@ -19,6 +20,7 @@ from .models import (
     NProcessPipeType,
     NAccountSummary,
     CashCustomer,
+    AccessRights,
 )
 
 
@@ -27,20 +29,22 @@ class BaseSerializer(serializers.ModelSerializer):
     A base serializer to enforce 'updated_by' validation during updates.
     """
 
-    def validate(self, data):
-        if self.instance:
-            # Validation for updates
-            # if "updated_by" not in data or not data["updated_by"]:
-            #     raise serializers.ValidationError(
-            #         {"updated_by": "This field is required for updates."}
-            #     )
-            # else:
-            # Validation for creation
-            if "created_by" not in data or not data["created_by"]:
-                raise serializers.ValidationError(
-                    {"created_by": "This field is required for creation."}
-                )
-        return data
+    # def validate(self, data):
+    #     if self.instance:
+    #         # Validation for updates
+    #         # if "updated_by" not in data or not data["updated_by"]:
+    #         #     raise serializers.ValidationError(
+    #         #         {"updated_by": "This field is required for updates."}
+    #         #     )
+    #         # else:
+    #         # Validation for creation
+                   
+
+    #         if "created_by" not in data or not data["created_by"]:
+    #             raise serializers.ValidationError(
+    #                 {"created_by": "This field is required for creation."}
+    #             )
+    #     return data
 
 
 class MItemSerializer(BaseSerializer):
@@ -240,3 +244,26 @@ class CashCustomerSerializer(serializers.ModelSerializer):
         model = CashCustomer
         fields = "__all__"  # Serialize all fields
         unique_field = "cashCusID"
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, employee):
+        token = super().get_token(employee)
+        token["nEMPCODE"] = employee.nEMPCODE
+        token["is_first_login"] = employee.is_first_login
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        employee = Employee.objects.get(nEmail=attrs["email"])
+        data["is_first_login"] = employee.is_first_login
+        data["nEMPCODE"] = employee.nEMPCODE
+        return data
+
+
+class AccessRightsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AccessRights
+        fields = "__all__"
