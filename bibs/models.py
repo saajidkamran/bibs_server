@@ -204,7 +204,6 @@ class MTrsProcessType(models.Model):
         return f"{self.process.pr_id} - {self.process_type.pt_id}"
 
 
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 
 
 class Employee(AbstractBaseUser, PermissionsMixin):
@@ -233,8 +232,7 @@ class Employee(AbstractBaseUser, PermissionsMixin):
     nFSID = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     nImage = models.TextField(null=True, blank=True)
     is_first_login = models.BooleanField(default=True)
-    nPwdHash = models.CharField(max_length=256, null=True, blank=True)
-    nPwdSalt = models.CharField(max_length=256, null=True, blank=True)
+    password = models.CharField(max_length=128)  
 
     # Django AUTH fields
     USERNAME_FIELD = "nEmail"

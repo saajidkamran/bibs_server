@@ -97,14 +97,15 @@ WSGI_APPLICATION = "bibs_server.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",  # Use the MySQL backend
-        "NAME": "bibs_server_db",  # Your MySQL database name
-        "USER": "root",  # Your MySQL username
-        "PASSWORD": "root",  # Your MySQL password
-        "HOST": "localhost",  # MySQL is hosted locally
-        "PORT": "3306",  # MySQL default port
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": os.environ.get("DB_NAME", "bibs_server_db"),
+        "USER": os.environ.get("DB_USER", "root"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "PORT": os.environ.get("DB_PORT", "3306"),
     }
 }
+
 
 
 # Password validation

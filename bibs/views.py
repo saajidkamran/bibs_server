@@ -727,7 +727,7 @@ class EmployeeCreateView(BaseModelViewSet):
         data = request.data.copy()
 
         # Inject custom fields
-        data["nPwdHash"] = make_password("123bibs")
+        data["password"] = make_password("123bibs")
         data["is_first_login"] = True
         data["nActive"] = True
 
@@ -743,15 +743,16 @@ class EmployeeCreateView(BaseModelViewSet):
         instance = self.get_object()
         data = request.data.copy()
 
-        if "nPwdHash" not in data:
-            # If no password provided, keep the old one
-            data["nPwdHash"] = instance.nPwdHash
+        if "password" not in data:
+            # If no new password is provided, retain the existing one
+            data["password"] = instance.password
 
         serializer = self.get_serializer(instance, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
         return Response(serializer.data)
+
 
 
 class CustomerViewSet(BaseModelViewSet):
@@ -1333,15 +1334,14 @@ class ResetPasswordFirstLoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Hash and update password
-        employee.nPwdHash = make_password(new_password)
+        # ✅ Update to use `password` field
+        employee.password = make_password(new_password)
         employee.is_first_login = False
-        employee.save(update_fields=["nPwdHash", "is_first_login"])
+        employee.save(update_fields=["password", "is_first_login"])
 
         return Response(
             {"message": "Password updated successfully."}, status=status.HTTP_200_OK
         )
-
 
 class EmailLoginView(APIView):
     def post(self, request):
@@ -1353,24 +1353,17 @@ class EmailLoginView(APIView):
         except Employee.DoesNotExist:
             return Response({"error": "Invalid email or password"}, status=400)
 
-        if not check_password(password, user.nPwdHash):
+        # ✅ Update check_password call
+        if not check_password(password, user.password):
             return Response({"error": "Invalid email or password"}, status=400)
 
-        # Token creation
         refresh = RefreshToken.for_user(user)
 
-        # Step 1: Get user role
         user_role_id = user.nUserRole
-
-        # Step 2: Access Rights lookup
         access_rights = AccessRights.objects.filter(user_group=user_role_id)
-
-        # Step 3: Get menu names from Menu table
         menu_ids = access_rights.values_list("menu_id", flat=True).distinct()
         menu_names = list(
-            Menu.objects.filter(menu_id__in=menu_ids).values_list(
-                "menu_name", flat=True
-            )
+            Menu.objects.filter(menu_id__in=menu_ids).values_list("menu_name", flat=True)
         )
 
         return Response(
