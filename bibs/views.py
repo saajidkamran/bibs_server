@@ -1,20 +1,25 @@
 from calendar import month_name
 from collections import defaultdict
 import datetime
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 import json
 import os
 from PIL import Image
-from django.core.files.storage import default_storage
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
-
+from django.contrib.auth.hashers import make_password
 from django.forms import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework.decorators import action
-
+from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.contrib.auth.hashers import check_password
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import (
     CashCustomer,
     Job,
@@ -28,6 +33,7 @@ from .models import (
     MTrsProcess,
     Employee,
     Customer,
+    Menu,
     NPayment,
     NPaymentType,
     SetupCompany,
@@ -38,8 +44,11 @@ from .models import (
     NItemResizeType,
     MTrsProcessType,
     NAccountSummary,
+    AccessRights,
+    UserGroup,
 )
 from .serializers import (
+    AccessRightsSerializer,
     CashCustomerSerializer,
     JobImageSerializer,
     JobSerializer,
@@ -59,6 +68,7 @@ from .serializers import (
     NItemResizeTypeSerializer,
     MTrsProcessTypeSerializer,
     NAccountSummarySerializer,
+    CustomTokenObtainPairSerializer,
 )
 
 
@@ -93,12 +103,12 @@ class BaseModelViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        Override the create method to handle unique ID generation for new records.
+        Override create method to inject created_by automatically using request.nEmployeeCode.
         """
         unique_field_name = self.serializer_class.Meta.unique_field
         unique_field_value = request.data.get(unique_field_name)
-        if not request.data.get(unique_field_name):
-            # Define prefixes for different sr_codes
+
+        if not unique_field_value:
             sr_code_map = {
                 "it_id": "itm",
                 "pt_id": "pt",
@@ -118,59 +128,40 @@ class BaseModelViewSet(viewsets.ModelViewSet):
                     f"No serial code defined for field: {unique_field_name}"
                 )
 
-            # Generate the unique ID
             unique_field_value = self.generate_unique_id(sr_code)
             request.data[unique_field_name] = unique_field_value
 
+        # Inject created_by here ✅
+        request.data["created_by"] = getattr(request, "nEmployeeCode", None)
         # Check if the record already exists
         instance = self.queryset.filter(
             **{unique_field_name: unique_field_value}
         ).first()
 
-        if instance:
-            # Update existing record
-            if "user" not in request.data or not request.data["user"]:
-                raise ValidationError(
-                    {"updated_by": "This field is required for updates."}
-                )
+        # if instance:
+        # Update existing record
 
-            # if request.data.get("nEMPCODE"):
-            #     request.data["nUpdatedBy"] = request.data.pop("user")
-            # elif request.data.get("nCUSCODE"):
-            #     request.data["nUpdatedBy"] = request.data.pop("user")
-            # else:
-
-            request.data["updated_by"] = request.data.pop("user")
-
-            serializer = self.get_serializer(instance, data=request.data, partial=False)
-            serializer.is_valid(raise_exception=True)
-            self.perform_update(serializer)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            # Ensure the 'user' field is provided in the payload
-            if "user" not in request.data or not request.data["user"]:
-                raise ValidationError({"user": "This field is required for creation."})
-
-            # if request.data.get("nEMPCODE"):
-            #     request.data["nCreatedBy"] = request.data.pop("user")
-            # elif request.data.get("nCUSCODE"):
-            #     request.data["nCreatedBy"] = request.data.pop("user")
-            # else:
-            request.data["created_by"] = request.data.pop("user")
-
-            return super().create(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        # Ensure the 'user' field is provided in the payload
-        if "user" not in request.data or not request.data["user"]:
-            raise ValidationError({"user": "This field is required for updates."})
-
-        # if request.data["nEMPCODE"] | request.data["nEMPCODE"]:
-
+        # if request.data.get("nEMPCODE"):
+        #     request.data["nUpdatedBy"] = request.data.pop("user")
+        # elif request.data.get("nCUSCODE"):
         #     request.data["nUpdatedBy"] = request.data.pop("user")
         # else:
 
-        request.data["updated_by"] = request.data.pop("user")
+        # request.data["updated_by"] = getattr(request, "nEmployeeCode", None)
+
+        # serializer = self.get_serializer(instance, data=request.data, partial=False)
+        # serializer.is_valid(raise_exception=True)
+        # self.perform_update(serializer)
+        # return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        """
+        Override update method to inject updated_by automatically using request.nEmployeeCode.
+        """
+        # Inject updated_by here ✅
+        request.data["updated_by"] = getattr(request, "nEmployeeCode", None)
 
         return super().update(request, *args, **kwargs)
 
@@ -729,12 +720,39 @@ class MTrsProcessTypeViewSet(BaseRestrictedViewSet):
 
 
 class EmployeeCreateView(BaseModelViewSet):
-    """
-    API view to create or update an employee based on nEMPCODE.
-    """
-
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
+
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+
+        # Inject custom fields
+        data["password"] = make_password("123bibs")
+        data["is_first_login"] = True
+        data["nActive"] = True
+
+        # Make sure 'user' is included for audit tracking
+        if "user" not in data or not data["user"]:
+            return Response({"error": "user field is required"}, status=400)
+
+        # Replace request.data with the updated copy before passing to parent create
+        request._full_data = data  # override full_data so BaseModelViewSet can use it
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        data = request.data.copy()
+
+        if "password" not in data:
+            # If no new password is provided, retain the existing one
+            data["password"] = instance.password
+
+        serializer = self.get_serializer(instance, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data)
+
 
 
 class CustomerViewSet(BaseModelViewSet):
@@ -1288,3 +1306,146 @@ class CashCustomerViewSet(BaseModelViewSet):
         print("re>>>ER>>>", request.data)
 
         return response
+
+
+class ResetPasswordFirstLoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        emp_code = request.data.get("nEMPCODE")
+        new_password = request.data.get("password")
+
+        if not emp_code or not new_password:
+            return Response(
+                {"error": "Both 'nEMPCODE' and 'password' are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            employee = Employee.objects.get(nEMPCODE=emp_code)
+        except Employee.DoesNotExist:
+            return Response(
+                {"error": "Employee not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not employee.is_first_login:
+            return Response(
+                {"error": "Password has already been set."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # ✅ Update to use `password` field
+        employee.password = make_password(new_password)
+        employee.is_first_login = False
+        employee.save(update_fields=["password", "is_first_login"])
+
+        return Response(
+            {"message": "Password updated successfully."}, status=status.HTTP_200_OK
+        )
+
+class EmailLoginView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        try:
+            user = Employee.objects.get(nEmail=email)
+        except Employee.DoesNotExist:
+            return Response({"error": "Invalid email or password"}, status=400)
+
+        # ✅ Update check_password call
+        if not check_password(password, user.password):
+            return Response({"error": "Invalid email or password"}, status=400)
+
+        refresh = RefreshToken.for_user(user)
+
+        user_role_id = user.nUserRole
+        access_rights = AccessRights.objects.filter(user_group=user_role_id)
+        menu_ids = access_rights.values_list("menu_id", flat=True).distinct()
+        menu_names = list(
+            Menu.objects.filter(menu_id__in=menu_ids).values_list("menu_name", flat=True)
+        )
+
+        return Response(
+            {
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+                "nEMPCODE": user.nEMPCODE,
+                "is_first_login": user.is_first_login,
+                "menu_names": menu_names,
+            }
+        )
+
+
+class EmailJWTAuthentication(JWTAuthentication):
+    def authenticate(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        if not email or not password:
+            raise AuthenticationFailed("Email and password required")
+
+        try:
+            user = Employee.objects.get(nEmail=email)
+        except Employee.DoesNotExist:
+            raise AuthenticationFailed("User not found")
+
+        if not user.nPwdHash or not check_password(password, user.nPwdHash):
+            raise AuthenticationFailed("Invalid credentials")
+
+        if not user.nActive:
+            raise AuthenticationFailed("User is inactive")
+
+        return (user, None)
+
+
+class AccessRightsViewSet(viewsets.ModelViewSet):
+    queryset = AccessRights.objects.all()
+    serializer_class = AccessRightsSerializer
+
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+
+        # Resolve user_group ID
+        user_group_name = data.get("user_group")
+        try:
+            user_group = UserGroup.objects.get(group_name__iexact=user_group_name)
+            data["user_group"] = user_group.user_group_id
+        except UserGroup.DoesNotExist:
+            return Response(
+                {"error": f"User group '{user_group_name}' not found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Resolve menu ID
+        menu_name = data.get("menu")
+        try:
+            menu = Menu.objects.get(menu_name__iexact=menu_name)
+            data["menu"] = menu.menu_id
+        except Menu.DoesNotExist:
+            return Response(
+                {"error": f"Menu '{menu_name}' not found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Look up existing AccessRights
+        instance = AccessRights.objects.filter(user_group=user_group, menu=menu).first()
+
+        if instance:
+            # Update instead of creating a duplicate
+            data["updated_by"] = data.pop("user", None)
+            serializer = self.get_serializer(instance, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Create new record if not found
+        data["created_by"] = data.pop("user", None)
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+def perform_create(self, serializer):
+    serializer.save(created_by=self.request.nEmployeeCode)

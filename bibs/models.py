@@ -1,5 +1,6 @@
 from django.db import models
 import uuid  # For UUIDField
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 
 
 class SetupCompany(models.Model):
@@ -203,45 +204,39 @@ class MTrsProcessType(models.Model):
         return f"{self.process.pr_id} - {self.process_type.pt_id}"
 
 
-class Employee(models.Model):
-    nId = models.AutoField(primary_key=True)  # Primary Key
-    nEMPCODE = models.CharField(max_length=50, unique=True)  # Employee Code
-    nUserRole = models.IntegerField(null=True, blank=True)  # User Role
-    nActive = models.BooleanField(default=False)  # Active status
-    nFirstName = models.CharField(max_length=100, null=True, blank=True)  # First Name
-    nSurName = models.CharField(max_length=100, null=True, blank=True)  # Surname
-    nAddress1 = models.CharField(
-        max_length=255, null=True, blank=True
-    )  # Address line 1
-    nAddress2 = models.CharField(
-        max_length=255, null=True, blank=True
-    )  # Address line 2
-    nAddress3 = models.CharField(
-        max_length=255, null=True, blank=True
-    )  # Address line 3
-    nTown = models.CharField(max_length=100, null=True, blank=True)  # Town
-    nPostCode = models.CharField(max_length=20, null=True, blank=True)  # Postcode
-    nPhone = models.CharField(max_length=20, null=True, blank=True)  # Phone
-    nMobile = models.CharField(max_length=20, null=True, blank=True)  # Mobile
-    nEmail = models.EmailField(max_length=100, null=True, blank=True)  # Email
-    nBasicSal = models.DecimalField(
-        max_digits=15, decimal_places=2, default=0.0
-    )  # Basic Salary
-    nOverTime = models.DecimalField(
-        max_digits=15, decimal_places=2, default=0.0
-    )  # Overtime
-    nNoOfAppLeave = models.IntegerField(default=0)  # Number of Approved Leaves
-    nLeaveTaken = models.IntegerField(default=0)  # Number of Leaves Taken
-    nCreatedDate = models.DateTimeField(auto_now_add=True)  # Creation Date
-    nUpdatedDate = models.DateTimeField(auto_now=True)  # Update Date
-    created_by = models.CharField(max_length=50, null=True, blank=True)  # Created By
-    updated_by = models.CharField(max_length=50, null=True, blank=True)  # Updated By
-    nFSID = models.UUIDField(
-        default=uuid.uuid4, unique=True, editable=False
-    )  # Foreign System ID (GUID)
-    nImage = models.TextField(null=True, blank=True)  # Image
-    nPwdHash = models.CharField(max_length=256, null=True, blank=True)  # Password Hash
-    nPwdSalt = models.CharField(max_length=256, null=True, blank=True)  # Password Salt
+
+
+class Employee(AbstractBaseUser, PermissionsMixin):
+    nId = models.AutoField(primary_key=True)
+    nEMPCODE = models.CharField(max_length=50, unique=True)
+    nUserRole = models.IntegerField(null=True, blank=True)
+    nActive = models.BooleanField(default=False)
+    nFirstName = models.CharField(max_length=100, null=True, blank=True)
+    nSurName = models.CharField(max_length=100, null=True, blank=True)
+    nAddress1 = models.CharField(max_length=255, null=True, blank=True)
+    nAddress2 = models.CharField(max_length=255, null=True, blank=True)
+    nAddress3 = models.CharField(max_length=255, null=True, blank=True)
+    nTown = models.CharField(max_length=100, null=True, blank=True)
+    nPostCode = models.CharField(max_length=20, null=True, blank=True)
+    nPhone = models.CharField(max_length=20, null=True, blank=True)
+    nMobile = models.CharField(max_length=20, null=True, blank=True)
+    nEmail = models.EmailField(max_length=100, unique=True)  # <-- make sure `unique`
+    nBasicSal = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
+    nOverTime = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
+    nNoOfAppLeave = models.IntegerField(default=0)
+    nLeaveTaken = models.IntegerField(default=0)
+    nCreatedDate = models.DateTimeField(auto_now_add=True)
+    nUpdatedDate = models.DateTimeField(auto_now=True)
+    created_by = models.CharField(max_length=50, null=True, blank=True)
+    updated_by = models.CharField(max_length=50, null=True, blank=True)
+    nFSID = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    nImage = models.TextField(null=True, blank=True)
+    is_first_login = models.BooleanField(default=True)
+    password = models.CharField(max_length=128)  
+
+    # Django AUTH fields
+    USERNAME_FIELD = "nEmail"
+    REQUIRED_FIELDS = []
 
     def __str__(self):
         return self.nEMPCODE
@@ -370,7 +365,7 @@ class JobImage(models.Model):
     img_location = models.TextField()  # Image Location or Base64 Data
 
     def __str__(self):
-        return self.img_id
+        return self.nId
 
     class Meta:
         db_table = "tb_jobs_images"  # Set table name
@@ -466,7 +461,7 @@ class NItemResizeType(models.Model):
     updated_by = models.CharField(max_length=50, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.nType} ({self.nId})"
+        return f"{self.nType} ({self.itmrz_id})"
 
     class Meta:
         db_table = "nitemresizetype"  # Specify table name

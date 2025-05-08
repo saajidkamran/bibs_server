@@ -21,6 +21,7 @@ from rest_framework.routers import DefaultRouter
 from django.conf import settings
 from django.conf.urls.static import static
 from bibs.views import (
+    AccessRightsViewSet,
     CashCustomerViewSet,
     JobImageViewSet,
     JobViewSet,
@@ -40,7 +41,14 @@ from bibs.views import (
     NItemResizeTypeViewSet,
     MTrsProcessTypeViewSet,
     NAccountSummaryViewSet,
+    ResetPasswordFirstLoginView,
+    EmailLoginView,
 )
+from rest_framework_simplejwt.views import (
+    TokenRefreshView,
+    TokenVerifyView,
+)
+
 
 router = DefaultRouter()
 
@@ -67,8 +75,18 @@ router.register(r"trs-process-types", MTrsProcessTypeViewSet)
 router.register(r"naccountsummary", NAccountSummaryViewSet, basename="naccountsummary")
 router.register(r"cash-customers", CashCustomerViewSet, basename="cash-customer")
 router.register(r"payment-types", NPaymentTypeViewSet)
+router.register(r"access-rights", AccessRightsViewSet)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
+    path(
+        "api/reset-password/",
+        ResetPasswordFirstLoginView.as_view(),
+        name="reset-password",
+    ),
+    path("api/login/", EmailLoginView.as_view(), name="email-login"),
+    # JWT-specific endpoints
+    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/token/verify/", TokenVerifyView.as_view(), name="token_verify"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
