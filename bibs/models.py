@@ -1,6 +1,7 @@
 from django.db import models
 import uuid  # For UUIDField
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.contrib.auth.base_user import BaseUserManager
 
 
 class SetupCompany(models.Model):
@@ -206,41 +207,6 @@ class MTrsProcessType(models.Model):
 
 
 
-class Employee(AbstractBaseUser, PermissionsMixin):
-    nId = models.AutoField(primary_key=True)
-    nEMPCODE = models.CharField(max_length=50, unique=True)
-    nUserRole = models.IntegerField(null=True, blank=True)
-    nActive = models.BooleanField(default=False)
-    nFirstName = models.CharField(max_length=100, null=True, blank=True)
-    nSurName = models.CharField(max_length=100, null=True, blank=True)
-    nAddress1 = models.CharField(max_length=255, null=True, blank=True)
-    nAddress2 = models.CharField(max_length=255, null=True, blank=True)
-    nAddress3 = models.CharField(max_length=255, null=True, blank=True)
-    nTown = models.CharField(max_length=100, null=True, blank=True)
-    nPostCode = models.CharField(max_length=20, null=True, blank=True)
-    nPhone = models.CharField(max_length=20, null=True, blank=True)
-    nMobile = models.CharField(max_length=20, null=True, blank=True)
-    nEmail = models.EmailField(max_length=100, unique=True)  # <-- make sure `unique`
-    nBasicSal = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
-    nOverTime = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
-    nNoOfAppLeave = models.IntegerField(default=0)
-    nLeaveTaken = models.IntegerField(default=0)
-    nCreatedDate = models.DateTimeField(auto_now_add=True)
-    nUpdatedDate = models.DateTimeField(auto_now=True)
-    created_by = models.CharField(max_length=50, null=True, blank=True)
-    updated_by = models.CharField(max_length=50, null=True, blank=True)
-    nFSID = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    nImage = models.TextField(null=True, blank=True)
-    is_first_login = models.BooleanField(default=True)
-    password = models.CharField(max_length=128)  
-
-    # Django AUTH fields
-    USERNAME_FIELD = "nEmail"
-    REQUIRED_FIELDS = []
-
-    def __str__(self):
-        return self.nEMPCODE
-
 
 class Customer(models.Model):
     nCUSCODE = models.CharField(max_length=50, primary_key=True)  # Primary Key
@@ -374,6 +340,7 @@ class JobImage(models.Model):
 class UserGroup(models.Model):
     user_group_id = models.AutoField(primary_key=True)  # Auto-incrementing primary key
     group_name = models.CharField(max_length=50, unique=True)  # Unique group name
+    description=models.CharField(max_length=250)
 
     def __str__(self):
         return self.group_name
@@ -430,7 +397,7 @@ class AccessRights(models.Model):
         related_name="access_rights",
     )  # Foreign key referencing Menu
     add = models.BooleanField(default=False)  # Permission to add
-    edit = models.BooleanField(default=False)  # Permission to edit
+    view = models.BooleanField(default=False)  # Permission to view
     delete = models.BooleanField(default=False)  # Permission to delete
     update = models.BooleanField(default=False)  # Permission to update
 
@@ -442,7 +409,7 @@ class AccessRights(models.Model):
         unique_together = ("user_group", "menu")  # Ensure unique combinat
 
 
-class NProcessPipeType(models.Model):
+class NProcessPipeTypes(models.Model):
     nPTId = models.AutoField(primary_key=True)
     nProType = models.CharField(max_length=100, unique=True)
 
@@ -540,3 +507,64 @@ class CashCustomer(models.Model):
 
     class Meta:
         db_table = "cash_customer"  # Custom table name
+class EmployeeManager(BaseUserManager):
+    """
+    Manager for Employee model that uses e-mail as the unique identifier.
+    """
+
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError("Email is required")
+        email = self.normalize_email(email)
+        user = self.model(nEmail=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        return self.create_user(email, password, **extra_fields)
+
+    # <--  THIS is what Django calls during login
+    def get_by_natural_key(self, email):
+        return self.get(nEmail__iexact=email)
+
+class Employee(AbstractBaseUser, PermissionsMixin):
+    @property
+    def user_group_id(self):
+        return self.nUserRole  
+    objects = EmployeeManager()      
+    nId = models.AutoField(primary_key=True)
+    nEMPCODE = models.CharField(max_length=50, unique=True)
+    nUserRole = models.IntegerField(null=True, blank=True)
+    nActive = models.BooleanField(default=False)
+    nFirstName = models.CharField(max_length=100, null=True, blank=True)
+    nSurName = models.CharField(max_length=100, null=True, blank=True)
+    nAddress1 = models.CharField(max_length=255, null=True, blank=True)
+    nAddress2 = models.CharField(max_length=255, null=True, blank=True)
+    nAddress3 = models.CharField(max_length=255, null=True, blank=True)
+    nTown = models.CharField(max_length=100, null=True, blank=True)
+    nPostCode = models.CharField(max_length=20, null=True, blank=True)
+    nPhone = models.CharField(max_length=20, null=True, blank=True)
+    nMobile = models.CharField(max_length=20, null=True, blank=True)
+    nEmail = models.EmailField(max_length=100, unique=True)  # <-- make sure `unique`
+    nBasicSal = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
+    nOverTime = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
+    nNoOfAppLeave = models.IntegerField(default=0)
+    nLeaveTaken = models.IntegerField(default=0)
+    nCreatedDate = models.DateTimeField(auto_now_add=True)
+    nUpdatedDate = models.DateTimeField(auto_now=True)
+    created_by = models.CharField(max_length=50, null=True, blank=True)
+    updated_by = models.CharField(max_length=50, null=True, blank=True)
+    nFSID = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    nImage = models.TextField(null=True, blank=True)
+    is_first_login = models.BooleanField(default=True)
+    password = models.CharField(max_length=128)  
+
+    # Django AUTH fields
+    USERNAME_FIELD = "nEmail"
+    REQUIRED_FIELDS = []
+
+    def __str__(self):
+        return self.nEMPCODE
