@@ -43,6 +43,7 @@ from bibs.views import (
     NAccountSummaryViewSet,
     ResetPasswordFirstLoginView,
     EmailLoginView,
+    UserGroupViewSet
 )
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
@@ -76,7 +77,7 @@ router.register(r"naccountsummary", NAccountSummaryViewSet, basename="naccountsu
 router.register(r"cash-customers", CashCustomerViewSet, basename="cash-customer")
 router.register(r"payment-types", NPaymentTypeViewSet)
 router.register(r"access-rights", AccessRightsViewSet)
-
+router.register(r"user-groups", UserGroupViewSet, basename="usergroup")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),

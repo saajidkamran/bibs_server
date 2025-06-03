@@ -39,7 +39,7 @@ from .models import (
     SetupCompany,
     Ticket,
     SerialTable,
-    NProcessPipeType,
+    NProcessPipeTypes,
     NProcessType,
     NItemResizeType,
     MTrsProcessType,
@@ -69,6 +69,7 @@ from .serializers import (
     MTrsProcessTypeSerializer,
     NAccountSummarySerializer,
     CustomTokenObtainPairSerializer,
+    UserGroupSerializer
 )
 
 
@@ -1252,7 +1253,7 @@ class NProcessPipeTypeViewSet(ReadOnlyModelViewSet):
     A simple ViewSet for listing or retrieving prototypes.
     """
 
-    queryset = NProcessPipeType.objects.all()
+    queryset = NProcessPipeTypes.objects.all()
     serializer_class = NProcessPipeTypeSerializer
 
 
@@ -1445,7 +1446,42 @@ class AccessRightsViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+class UserGroupViewSet(viewsets.ModelViewSet):
+    queryset = UserGroup.objects.all()
+    serializer_class = UserGroupSerializer
+    permission_classes = [AllowAny]  # No auth required
 
+    def create(self, request, *args, **kwargs):
+        group_name = request.data.get("group_name", "").strip()
+        description = request.data.get("description", "").strip()
+
+        if not group_name:
+            return Response({"error": "group_name is required."}, status=400)
+        
+        if not description:
+            return Response({"error": "description is required."}, status=400)
+
+        if UserGroup.objects.filter(group_name__iexact=group_name).exists():
+            return Response(
+                {"error": f"A group named '{group_name}' already exists."},
+                status=400,
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        group_name = request.data.get("group_name", "").strip()
+        instance = self.get_object()
+
+        if group_name and group_name.lower() != instance.group_name.lower():
+            if UserGroup.objects.filter(group_name__iexact=group_name).exclude(pk=instance.pk).exists():
+                return Response(
+                    {"error": f"A group named '{group_name}' already exists."},
+                    status=400,
+                )
+
+        return super().update(request, *args, **kwargs)
 
 def perform_create(self, serializer):
     serializer.save(created_by=self.request.nEmployeeCode)
