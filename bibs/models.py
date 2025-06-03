@@ -374,6 +374,7 @@ class JobImage(models.Model):
 class UserGroup(models.Model):
     user_group_id = models.AutoField(primary_key=True)  # Auto-incrementing primary key
     group_name = models.CharField(max_length=50, unique=True)  # Unique group name
+    description=models.CharField(max_length=250)
 
     def __str__(self):
         return self.group_name
@@ -430,7 +431,7 @@ class AccessRights(models.Model):
         related_name="access_rights",
     )  # Foreign key referencing Menu
     add = models.BooleanField(default=False)  # Permission to add
-    edit = models.BooleanField(default=False)  # Permission to edit
+    view = models.BooleanField(default=False)  # Permission to view
     delete = models.BooleanField(default=False)  # Permission to delete
     update = models.BooleanField(default=False)  # Permission to update
 
@@ -442,7 +443,7 @@ class AccessRights(models.Model):
         unique_together = ("user_group", "menu")  # Ensure unique combinat
 
 
-class NProcessPipeType(models.Model):
+class NProcessPipeTypes(models.Model):
     nPTId = models.AutoField(primary_key=True)
     nProType = models.CharField(max_length=100, unique=True)
 

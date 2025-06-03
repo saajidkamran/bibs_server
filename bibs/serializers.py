@@ -17,10 +17,12 @@ from .models import (
     NProcessType,
     NItemResizeType,
     MTrsProcessType,
-    NProcessPipeType,
+    NProcessPipeTypes,
     NAccountSummary,
     CashCustomer,
     AccessRights,
+    UserGroup,
+    Menu
 )
 
 
@@ -215,7 +217,7 @@ class JobSerializer(serializers.ModelSerializer):
 
 class NProcessPipeTypeSerializer(serializers.ModelSerializer):
     class Meta:
-        model = NProcessPipeType
+        model = NProcessPipeTypes
         fields = ["nPTId", "nProType"]
 
 
@@ -266,4 +268,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class AccessRightsSerializer(serializers.ModelSerializer):
     class Meta:
         model = AccessRights
+        fields = "__all__"
+
+class UserGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserGroup
+        fields = "__all__"
+
+class MenuSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Menu
         fields = "__all__"

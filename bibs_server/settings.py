@@ -54,7 +54,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # Add this
     "django.middleware.common.CommonMiddleware",
-    "bibs.middleware.access_control_middleware.AccessControlMiddleware",
+    # "bibs.middleware.access_control_middleware.AccessControlMiddleware",
 ]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # React development server
@@ -96,13 +96,13 @@ WSGI_APPLICATION = "bibs_server.wsgi.application"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.environ.get("DB_NAME", "bibs_server_db"),
-        "USER": os.environ.get("DB_USER", "root"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
-        "HOST": os.environ.get("DB_HOST", "localhost"),
-        "PORT": os.environ.get("DB_PORT", "3306"),
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'bibs_server_db',         # change to your actual DB name
+        'USER': 'root',
+        'PASSWORD': '',            # or your new password if set
+        'HOST': '127.0.0.1',       # <<< FORCES TCP
+        'PORT': '3306',
     }
 }
 
