@@ -17,12 +17,14 @@ from .models import (
     NProcessType,
     NItemResizeType,
     MTrsProcessType,
-    NProcessPipeType,
+    NProcessPipeTypes,
     NAccountSummary,
     CashCustomer,
     AccessRights,
+    UserGroup,
+    Menu
 )
-
+from bibs.utils.access import get_employee_menu_names
 
 class BaseSerializer(serializers.ModelSerializer):
     """
@@ -215,7 +217,7 @@ class JobSerializer(serializers.ModelSerializer):
 
 class NProcessPipeTypeSerializer(serializers.ModelSerializer):
     class Meta:
-        model = NProcessPipeType
+        model = NProcessPipeTypes
         fields = ["nPTId", "nProType"]
 
 
@@ -246,24 +248,79 @@ class CashCustomerSerializer(serializers.ModelSerializer):
         unique_field = "cashCusID"
 
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    @classmethod
-    def get_token(cls, employee):
-        token = super().get_token(employee)
-        token["nEMPCODE"] = employee.nEMPCODE
-        token["is_first_login"] = employee.is_first_login
-        return token
 
+# class BibsTokenObtainPairSerializer(TokenObtainPairSerializer):
+#     """
+#     Generates JWTs whose payload already contains
+#     employeeId, userGroupId and menuPermissions.
+#     """
+
+#     @classmethod
+#     def get_token(cls, employee):
+#         token = super().get_token(employee)
+
+#         # 💡  Custom claims
+#         token["nEMPCODE"] = employee.nEMPCODE
+#         token["userGroupId"] = employee.nUserRole
+#         token["menuPermissions"] = get_employee_menu_names(employee)
+
+#         # Nice to have
+#         token["is_first_login"] = employee.is_first_login
+#         return token
+
+#     def validate(self, attrs):
+#         """
+#         Called after credentials are verified.
+#         We mirror the same extra data into the response body so frontend
+#         can grab it without decoding the JWT.
+#         """
+#         data = super().validate(attrs)
+
+#         employee = self.user
+#         data.update(
+#             {
+#                 "nEMPCODE": employee.nEMPCODE,
+#                 "userGroupId": employee.nUserRole,
+#                 "menuPermissions": get_employee_menu_names(employee),
+#                 "is_first_login": employee.is_first_login,
+#             }
+#         )
+#         return data
+    
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
+        employee = self.user
 
-        employee = Employee.objects.get(nEmail=attrs["email"])
-        data["is_first_login"] = employee.is_first_login
+        if employee.is_first_login:
+            return {
+                "is_first_login": True,
+                "nEMPCODE": employee.nEMPCODE,
+                "email": employee.nEmail
+            }
+
+        refresh = self.get_token(employee)
+        data["refresh"] = str(refresh)
+        data["access"] = str(refresh.access_token)
         data["nEMPCODE"] = employee.nEMPCODE
+        data["userGroupId"] = employee.nUserRole
+        data["userName"] = employee.nFirstName
+        data["menuPermissions"] = get_employee_menu_names(employee)
+        data["is_first_login"] = False
         return data
 
 
 class AccessRightsSerializer(serializers.ModelSerializer):
     class Meta:
         model = AccessRights
+        fields = "__all__"
+
+class UserGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserGroup
+        fields = "__all__"
+
+class MenuSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Menu
         fields = "__all__"

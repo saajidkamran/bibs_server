@@ -39,7 +39,7 @@ from .models import (
     SetupCompany,
     Ticket,
     SerialTable,
-    NProcessPipeType,
+    NProcessPipeTypes,
     NProcessType,
     NItemResizeType,
     MTrsProcessType,
@@ -68,10 +68,10 @@ from .serializers import (
     NItemResizeTypeSerializer,
     MTrsProcessTypeSerializer,
     NAccountSummarySerializer,
-    CustomTokenObtainPairSerializer,
+    UserGroupSerializer,
+    MenuSerializer
 )
-
-
+from bibs.permissions import HasAccessRight
 class BaseModelViewSet(viewsets.ModelViewSet):
     """
     A base viewset that enforces:
@@ -200,39 +200,56 @@ class BaseRestrictedViewSet(viewsets.ModelViewSet):
 
 # Full CRUD for Standard Tables
 class MItemViewSet(BaseModelViewSet):
+    permission_classes = [HasAccessRight]
+    menu_code = ["m-items", "pos"]  
     queryset = MItem.objects.all()
     serializer_class = MItemSerializer
 
 
 class NProcessTypeViewSet(BaseModelViewSet):
+    permission_classes = [HasAccessRight]
     queryset = NProcessType.objects.all()
     serializer_class = NProcessTypeSerializer
+    menu_code = ["m-process-types", "pos"]  
+
 
 
 class MMetalViewSet(BaseModelViewSet):
+    permission_classes = [HasAccessRight]
     queryset = MMetal.objects.all()
     serializer_class = MMetalSerializer
+    menu_code = ["m-metals", "pos"]  
+
 
 
 class MMetalProcessViewSet(BaseModelViewSet):
+    permission_classes = [HasAccessRight]
     queryset = MMetalProcess.objects.all()
     serializer_class = MMetalProcessSerializer
+    menu_code = ["m-metal-processes", "pos"]  
+
 
 
 class MProcessViewSet(BaseModelViewSet):
+    permission_classes = [HasAccessRight]
     queryset = MProcess.objects.all()
     serializer_class = MProcessSerializer
+    menu_code = ["process", "pos"]  
+
 
 
 class NItemResizeTypeViewSet(BaseModelViewSet):
-
     queryset = NItemResizeType.objects.all()
     serializer_class = NItemResizeTypeSerializer
-
+    permission_classes = [HasAccessRight]
+    # Important: this should match the `name` column in your menu table
+    menu_code = ["m-item-resize", "pos"]  
 
 class MTrsItemsMetalsViewSet(BaseRestrictedViewSet):
+    permission_classes = [HasAccessRight]
     queryset = MTrsItemsMetals.objects.all()
     serializer_class = MTrsItemsMetalsSerializer
+    menu_code = ["trs-items-metals", "pos"]  
 
     @action(detail=True, methods=["get"], url_path="metals")
     def retrieve_metals(self, request, pk=None):
@@ -351,8 +368,10 @@ class MTrsItemsMetalsViewSet(BaseRestrictedViewSet):
 
 
 class MTrsProcessViewSet(BaseRestrictedViewSet):
+    permission_classes = [HasAccessRight]
     queryset = MTrsProcess.objects.all()
     serializer_class = MTrsProcessSerializer
+    menu_code = ["trs-process-types", "pos"]  
 
     def create(self, request, *args, **kwargs):
         """
@@ -478,8 +497,10 @@ class MTrsProcessViewSet(BaseRestrictedViewSet):
 
 
 class MTrsMetalMetalProcessViewSet(BaseRestrictedViewSet):
+    permission_classes = [HasAccessRight]
     queryset = MTrsMetalMetalProcess.objects.all()
     serializer_class = MTrsMetalMetalProcessSerializer
+    menu_code = ["trs-metals-metalprocess", "pos"]  
 
     def create(self, request, *args, **kwargs):
         """
@@ -599,9 +620,10 @@ class MTrsProcessTypeViewSet(BaseRestrictedViewSet):
     """
     A ViewSet for managing MTrsProcessType records.
     """
-
+    permission_classes = [HasAccessRight]
     queryset = MTrsProcessType.objects.all()
     serializer_class = MTrsProcessTypeSerializer
+    menu_code = ["type-of-process", "pos"]  
 
     def create(self, request, *args, **kwargs):
         """
@@ -722,6 +744,9 @@ class MTrsProcessTypeViewSet(BaseRestrictedViewSet):
 class EmployeeCreateView(BaseModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
+    permission_classes = [HasAccessRight]
+    menu_code="employees"
+
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
@@ -752,6 +777,91 @@ class EmployeeCreateView(BaseModelViewSet):
         self.perform_update(serializer)
 
         return Response(serializer.data)
+   
+    @action(detail=False, methods=["post"], url_path="unassign-role")
+    def unassign_role_by_code(self, request):
+        emp_code = request.data.get("nEMPCODE")
+
+        if not emp_code:
+            return Response({"error": "nEMPCODE is required."}, status=400)
+
+        try:
+            employee = Employee.objects.get(nEMPCODE=emp_code)
+            employee.nUserRole = 0
+            employee.updated_by = getattr(request, "nEmployeeCode", None)
+            employee.save(update_fields=["nUserRole", "updated_by"])
+
+            return Response(
+                {"message": f"Role for {emp_code} updated to 0 (unassigned)."},
+                status=200
+            )
+        except Employee.DoesNotExist:
+            return Response({"error": "Employee not found."}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+        
+    @action(detail=False, methods=["post"], url_path="assign-role")
+    def assign_role_by_code(self, request):
+        emp_codes = request.data.get("nEMPCODE")  # expecting a list
+        new_role = request.data.get("nUserRole")
+
+        if not isinstance(emp_codes, list) or new_role is None:
+            return Response(
+                {"error": "'nEMPCODE' must be a list and 'nUserRole' is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        updated = []
+        not_found = []
+
+        for emp_code in emp_codes:
+            try:
+                employee = Employee.objects.get(nEMPCODE=emp_code)
+                employee.nUserRole = new_role
+                employee.updated_by = getattr(request, "nEmployeeCode", None)
+                employee.save(update_fields=["nUserRole", "updated_by"])
+                updated.append(emp_code)
+            except Employee.DoesNotExist:
+                not_found.append(emp_code)
+
+        return Response(
+            {
+                "message": f"Updated {len(updated)} employee(s).",
+                "updated": updated,
+                "not_found": not_found,
+            },
+            status=status.HTTP_200_OK,
+        )
+    @action(detail=False, methods=["get"], url_path="exclude-role")
+    def get_employees_exclude_role(self, request):
+        """
+        Return employees who do NOT belong to the specified role.
+        Example: GET /api/employees/exclude-role/?nUserRole=2
+        """
+        role_to_exclude = request.query_params.get("nUserRole")
+
+        if role_to_exclude is None:
+            return Response(
+                {"error": "Query parameter 'nUserRole' is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            employees = Employee.objects.exclude(nUserRole=role_to_exclude)
+            data = [
+                {
+                    "id": emp.nEMPCODE,
+                    "name": f"{emp.nFirstName} {emp.nSurName}",
+                    "email": emp.nEmail,
+                    "role": emp.nUserRole,
+                }
+                for emp in employees
+            ]
+            return Response(data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
@@ -762,6 +872,10 @@ class CustomerViewSet(BaseModelViewSet):
 
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
+    permission_classes = [HasAccessRight]
+    menu_code = ["customers","pos"]  
+
+    
 
     def create(self, request, *args, **kwargs):
         """
@@ -786,6 +900,7 @@ class CustomerViewSet(BaseModelViewSet):
             )
 
         return response
+
 
     def destroy(self, request, *args, **kwargs):
         """
@@ -819,6 +934,8 @@ class TicketViewSet(BaseModelViewSet):
 
     queryset = Ticket.objects.all()
     serializer_class = TicketSerializer
+    permission_classes = [HasAccessRight]
+    menu_code = ["tickets",'pos']  
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -1160,6 +1277,8 @@ class JobViewSet(BaseModelViewSet):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
     parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [HasAccessRight]
+    menu_code = ['pos']  
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -1251,15 +1370,15 @@ class NProcessPipeTypeViewSet(ReadOnlyModelViewSet):
     """
     A simple ViewSet for listing or retrieving prototypes.
     """
-
-    queryset = NProcessPipeType.objects.all()
+    permission_classes = [HasAccessRight]
+    queryset = NProcessPipeTypes.objects.all()
     serializer_class = NProcessPipeTypeSerializer
 
 
 class NAccountSummaryViewSet(viewsets.ModelViewSet):
     queryset = NAccountSummary.objects.all()
     serializer_class = NAccountSummarySerializer
-
+    permission_classes = [HasAccessRight]
     # Custom action to filter data based on customer ID
     @action(detail=False, methods=["get"], url_path="by-customer")
     def get_by_customer(self, request):
@@ -1286,14 +1405,16 @@ class NPaymentTypeViewSet(ReadOnlyModelViewSet):
     """
     A simple ViewSet for listing or retrieving payment types.
     """
-
+    permission_classes = [HasAccessRight]
     queryset = NPaymentType.objects.all()
     serializer_class = NPaymentTypeSerializer
 
 
 class CashCustomerViewSet(BaseModelViewSet):
+    permission_classes = [HasAccessRight]
     queryset = CashCustomer.objects.all()
     serializer_class = CashCustomerSerializer
+    menu_code = ['pos']  
 
     def create(self, request, *args, **kwargs):
         """
@@ -1399,53 +1520,96 @@ class EmailJWTAuthentication(JWTAuthentication):
         return (user, None)
 
 
-class AccessRightsViewSet(viewsets.ModelViewSet):
-    queryset = AccessRights.objects.all()
-    serializer_class = AccessRightsSerializer
+class AccessRightsUpsertAPIView(APIView):
+    def put(self, request):
+        data = request.data
+        user_group_id = data.get("user_group")
+        menu_id = data.get("menu")
 
-    def create(self, request, *args, **kwargs):
-        data = request.data.copy()
+        if not user_group_id or not menu_id:
+            return Response({"error": "user_group and menu are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Resolve user_group ID
-        user_group_name = data.get("user_group")
         try:
-            user_group = UserGroup.objects.get(group_name__iexact=user_group_name)
-            data["user_group"] = user_group.user_group_id
-        except UserGroup.DoesNotExist:
-            return Response(
-                {"error": f"User group '{user_group_name}' not found."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            # Try to fetch existing record
+            access_right = AccessRights.objects.get(user_group_id=user_group_id, menu_id=menu_id)
+            serializer = AccessRightsSerializer(access_right, data=data, partial=True)
+        except AccessRights.DoesNotExist:
+            # Create new if not found
+            serializer = AccessRightsSerializer(data=data)
 
-        # Resolve menu ID
-        menu_name = data.get("menu")
-        try:
-            menu = Menu.objects.get(menu_name__iexact=menu_name)
-            data["menu"] = menu.menu_id
-        except Menu.DoesNotExist:
-            return Response(
-                {"error": f"Menu '{menu_name}' not found."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Look up existing AccessRights
-        instance = AccessRights.objects.filter(user_group=user_group, menu=menu).first()
-
-        if instance:
-            # Update instead of creating a duplicate
-            data["updated_by"] = data.pop("user", None)
-            serializer = self.get_serializer(instance, data=data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            self.perform_update(serializer)
+        if serializer.is_valid():
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
 
-        # Create new record if not found
-        data["created_by"] = data.pop("user", None)
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request):
+        user_group_id = request.query_params.get("user_group_id")
 
+        if not user_group_id:
+            return Response({"error": "user_group_id query parameter is required."}, status=400)
+
+        access_rights = AccessRights.objects.filter(user_group_id=user_group_id)
+        serializer = AccessRightsSerializer(access_rights, many=True)
+        
+        return Response(serializer.data, status=200)
+
+class UserGroupViewSet(viewsets.ModelViewSet):
+    queryset = UserGroup.objects.all()
+    serializer_class = UserGroupSerializer
+    permission_classes = [AllowAny]  # No auth required
+
+    def create(self, request, *args, **kwargs):
+        group_name = request.data.get("group_name", "").strip()
+        description = request.data.get("description", "").strip()
+
+        if not group_name:
+            return Response({"error": "group_name is required."}, status=400)
+        
+        if not description:
+            return Response({"error": "description is required."}, status=400)
+
+        if UserGroup.objects.filter(group_name__iexact=group_name).exists():
+            return Response(
+                {"error": f"A group named '{group_name}' already exists."},
+                status=400,
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        group_name = request.data.get("group_name", "").strip()
+        instance = self.get_object()
+
+        if group_name and group_name.lower() != instance.group_name.lower():
+            if UserGroup.objects.filter(group_name__iexact=group_name).exclude(pk=instance.pk).exists():
+                return Response(
+                    {"error": f"A group named '{group_name}' already exists."},
+                    status=400,
+                )
+
+        return super().update(request, *args, **kwargs)
+    
+    @action(detail=True, methods=["get"], url_path="employees")
+    def get_group_employees(self, request, pk):
+        try:
+            employees = Employee.objects.filter(nUserRole=pk)
+            data = [
+                {
+                    "id": emp.nEMPCODE,
+                    "name": f"{emp.nFirstName} {emp.nSurName}",
+                    "email": emp.nEmail,
+                    "role": emp.nUserRole,
+                }
+                for emp in employees
+            ]
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class MenuViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Menu.objects.all()
+    serializer_class = MenuSerializer
 
 def perform_create(self, serializer):
     serializer.save(created_by=self.request.nEmployeeCode)
